@@ -42,13 +42,25 @@ class EventMap  {
     }
 
     public function invoke(type:String, event:UIEvent, target:Component = null) {
+        if (event.bubble && event.target == null) {
+            event.target = target;
+        }
+
         var arr:FunctionArray<UIEvent->Void> = _map.get(type);
         if (arr != null) {
             arr = arr.copy();
             for (fn in arr) {
+                #if !kha // TODO - causes undesirable behaviour with scrollbars on kha (button cancels screen event, scroll thus never gets event and always thinks its "down")
+                if (event.canceled) {
+                    break;
+                }
+                #end
                 var c = event.clone();
-                c.target = target;
+                if (c.target == null) {
+                    c.target = target;
+                }
                 fn(c);
+                event.canceled = c.canceled;
             }
         }
     }

@@ -108,11 +108,15 @@ class TabView extends Component {
         return v;
     }
 
-    public override function findComponent<T>(criteria:String = null, type:Class<T> = null, recursive:Null<Bool> = null, searchType:String = "id"):Null<T> {
-        var match = super.findComponent(criteria, type, recursive, searchType);
-        if (match == null) {
+    public override function findComponent<T: Component>(criteria:String = null, type:Class<T> = null, recursive:Null<Bool> = null, searchType:String = "id"):Null<T> {
+        var match: Component = super.findComponent(criteria, type, recursive, searchType);
+        if (match == null && _views != null) {
             for (view in _views) {
-                match = view.findComponent(criteria, type, recursive, searchType);
+                if (view.matchesSearch(criteria, type, searchType)) {
+                    return cast view;
+                } else {
+                    match = view.findComponent(criteria, type, recursive, searchType);
+                }
                 if (match != null) {
                     break;
                 }
