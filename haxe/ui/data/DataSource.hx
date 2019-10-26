@@ -36,7 +36,10 @@ class DataSource<T> {
     }
 
     public function get(index:Int):T {
-        var r = handleGetItem(index);
+        var r:T = handleGetItem(index);
+        if (Std.is(r, IDataItem)) {
+            cast(r, IDataItem).onDataSourceChanged = onChange;
+        }
         if (transformer != null) {
             r = transformer.transformFrom(r);
         }
@@ -57,8 +60,8 @@ class DataSource<T> {
         return r;
     }
 
-    public function insert(item:T, index:Int):T {
-        var r = handleInsert(item, index);
+    public function insert(index:Int, item:T):T {
+        var r = handleInsert(index, item);
         handleChanged();
         return r;
     }
@@ -78,9 +81,7 @@ class DataSource<T> {
     public function clear() {
         var o = _allowCallbacks;
         _allowCallbacks = false;
-        while (size > 0) {
-            remove(get(0));
-        }
+        handleClear();
         _allowCallbacks = o;
         handleChanged();
     }
@@ -110,12 +111,21 @@ class DataSource<T> {
         return null;
     }
 
-    private function handleInsert(item:T, index:Int):T {
+    private function handleInsert(index:Int, item:T):T {
         return null;
     }
 
     private function handleRemoveItem(item:T):T {
         return null;
+    }
+
+    private function handleClear() {
+        var cachedTransformer = transformer;
+        transformer = null;
+        while (size > 0) {
+            remove(get(0));
+        }
+        transformer = cachedTransformer;
     }
 
     private function handleUpdateItem(index:Int, item:T):T {
