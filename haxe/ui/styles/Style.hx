@@ -1,10 +1,9 @@
 package haxe.ui.styles;
 
-import haxe.ui.core.Platform;
-import haxe.ui.styles.animation.Animation.AnimationOptions;
-import haxe.ui.styles.elements.Directive;
 import haxe.ui.filters.Filter;
 import haxe.ui.filters.FilterParser;
+import haxe.ui.styles.animation.Animation.AnimationOptions;
+import haxe.ui.styles.elements.Directive;
 
 class Style {
     public var left:Null<Float>;
@@ -71,6 +70,7 @@ class Style {
     public var borderRightSize:Null<Float>;
     public var borderRadius:Null<Float>;
     public var borderOpacity:Null<Float>;
+    public var borderStyle:Null<String>;
     
     public var icon:Null<String>;
     public var iconPosition:Null<String>;
@@ -166,10 +166,6 @@ class Style {
                     
                 case "background-color":
                     switch (v.value) {
-                        case Value.VCall(f, vl):
-                            if (f == "platform-color") {
-                                backgroundColor = Platform.instance.getColor(ValueTools.string(vl[0]));
-                            }
                         default:    
                             backgroundColor = ValueTools.int(v.value);
                             if (map.exists("background-color-end")) {
@@ -232,6 +228,8 @@ class Style {
                     borderRadius = ValueTools.calcDimension(v.value);
                 case "border-opacity":
                     borderOpacity = ValueTools.float(v.value);
+                case "border-style":
+                    borderStyle = ValueTools.string(v.value);
                     
                 case "icon":
                     switch (v.value) {
@@ -406,6 +404,7 @@ class Style {
 
         if (s.borderRadius != null) borderRadius = s.borderRadius;
         if (s.borderOpacity != null) borderOpacity = s.borderOpacity;
+        if (s.borderStyle != null) borderStyle = s.borderStyle;
 
         if (s.filter != null) filter = s.filter.copy();
         if (s.resource != null) resource = s.resource;
@@ -514,6 +513,7 @@ class Style {
 
         if (s.borderRadius != borderRadius) return false;
         if (s.borderOpacity != borderOpacity) return false;
+        if (s.borderStyle != borderStyle) return false;
 
         if (s.filter != filter) return false;
         if (s.resource != resource) return false;

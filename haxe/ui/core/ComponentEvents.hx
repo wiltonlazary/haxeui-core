@@ -92,13 +92,15 @@ class ComponentEvents extends ComponentContainer {
     **/
     @:dox(group = "Event related properties and methods")
     public function dispatch(event:UIEvent) {
-        if (__events != null) {
-            __events.invoke(event.type, event, cast(this, Component));  // TODO: avoid cast
-        }
-        
-        if (event.bubble == true && event.canceled == false && parentComponent != null) {
-            parentComponent.dispatch(event);
-        }
+		if (event != null) {
+			if (__events != null) {
+				__events.invoke(event.type, event, cast(this, Component));  // TODO: avoid cast
+			}
+			
+			if (event.bubble == true && event.canceled == false && parentComponent != null) {
+				parentComponent.dispatch(event);
+			}
+		}
     }
     
     private function dispatchRecursively(event:UIEvent) {
@@ -115,7 +117,7 @@ class ComponentEvents extends ComponentContainer {
     private var _disabledEvents:EventMap;
     private static var INTERACTIVE_EVENTS:Array<String> = [
         MouseEvent.MOUSE_MOVE, MouseEvent.MOUSE_OVER, MouseEvent.MOUSE_OUT, MouseEvent.MOUSE_DOWN,
-        MouseEvent.MOUSE_UP, MouseEvent.MOUSE_WHEEL, MouseEvent.CLICK, KeyboardEvent.KEY_DOWN,
+        MouseEvent.MOUSE_UP, MouseEvent.MOUSE_WHEEL, MouseEvent.CLICK, MouseEvent.DBL_CLICK, KeyboardEvent.KEY_DOWN,
         KeyboardEvent.KEY_UP
     ];
     
@@ -124,14 +126,16 @@ class ComponentEvents extends ComponentContainer {
     }
     
     private var _interactivityDisabled:Bool = false;
+    private var _interactivityDisabledCounter:Int = 0;
     private function disableInteractivity(disable:Bool, recursive:Bool = true) { // You might want to disable interactivity but NOT actually disable visually
-        if (_interactivityDisabled == disable) {
-            return;
-        }
-
-        _interactivityDisabled = disable;
-        
         if (disable == true) {
+            _interactivityDisabledCounter++;
+        } else {
+            _interactivityDisabledCounter--;
+        }
+        
+        if (_interactivityDisabledCounter > 0 && _interactivityDisabled == false) {
+            _interactivityDisabled = true;
             if (__events != null) {
                 for (eventType in __events.keys()) {
                     if (!isInteractiveEvent(eventType)) {
@@ -149,7 +153,8 @@ class ComponentEvents extends ComponentContainer {
                     }
                 }
             }
-        } else {
+        } else if (_interactivityDisabledCounter < 1 && _interactivityDisabled == true) {
+            _interactivityDisabled = false;
             if (_disabledEvents != null) {
                 for (eventType in _disabledEvents.keys()) {
                     var listeners:FunctionArray<UIEvent->Void> = _disabledEvents.listeners(eventType);

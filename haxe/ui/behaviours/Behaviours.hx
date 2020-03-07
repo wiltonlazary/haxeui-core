@@ -63,6 +63,21 @@ class Behaviours {
                     isSet: false
                 }
                 _registry.set(id, info);
+            } else {
+                #if debug
+                //trace("WARNING: no native behaviour found for " + Type.getClassName(Type.getClass(_component)) + "::" + id + ", using DefaultBehaviour");
+                #end
+                /*
+                var registered = _registry.get(id);
+                var info:BehaviourInfo = {
+                    id: id,
+                    cls: DefaultBehaviour,
+                    defaultValue: registered.defaultValue,
+                    config: new Map<String, String>(),
+                    isSet: false
+                }
+                _registry.set(id, info);
+                */
             }
         }
     }
@@ -116,15 +131,18 @@ class Behaviours {
             var info = _registry.get(id);
             if (info != null) {
                 b = Type.createInstance(info.cls, [_component]);
-                b.config = info.config;
-                b.id = id;
-                _instances.set(id, b);
-                _actualUpdateOrder = null;
+                if (b != null) {
+                    b.config = info.config;
+                    b.id = id;
+                    _instances.set(id, b);
+                    _actualUpdateOrder = null;
+                } else {
+                    trace("WARNING: problem creating behaviour class '" + info.cls +"' for '" + Type.getClassName(Type.getClass(_component)) + ":" + id + "'");
+                }
             }
         }
 
         if (b == null) {
-            // b = new Behaviour(_component); // TODO: TEMP!!!!!! (just while components move over)
             throw 'behaviour ${id} not found';
         }
         

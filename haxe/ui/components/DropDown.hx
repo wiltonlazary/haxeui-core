@@ -58,6 +58,28 @@ private class SelectedIndexBehaviour extends DataBehaviour {
         var handler:IDropDownHandler = cast(_component._compositeBuilder, DropDownBuilder).handler;
         handler.selectedIndex = _value;
     }
+    
+    public override function get():Variant {
+        if (_component.isReady == false) {
+            return super.get();
+        }
+        var handler:IDropDownHandler = cast(_component._compositeBuilder, DropDownBuilder).handler;
+        return handler.selectedIndex;
+    }
+    
+    public override function set(value:Variant) {
+        if (_component.isReady == false) {
+            super.set(value);
+            return;
+        }
+        if (value == _value) {
+            return;
+        }
+        _value = value;
+        invalidateData();
+        var handler:IDropDownHandler = cast(_component._compositeBuilder, DropDownBuilder).handler;
+        handler.selectedIndex = _value;
+    }
 }
 
 @:dox(hide) @:noCompletion
@@ -186,7 +208,7 @@ class ListDropDownHandler extends DropDownHandler {
             _dropdown.dispatch(new UIEvent(UIEvent.CHANGE));
         }
         
-        if (value >= 0 && value < _dropdown.dataSource.size) {
+        if (_dropdown.dataSource != null && value >= 0 && value < _dropdown.dataSource.size) {
             var data = _dropdown.dataSource.get(value);
             _dropdown.text = data.value;
         }
@@ -305,7 +327,6 @@ class DropDownEvents extends ButtonEvents {
         handler.component.styleNames = _dropdown.handlerStyleNames;
         var componentOffset = _dropdown.getComponentOffset();
         
-        var mode = "mobile";
         if (_dropdown.style.mode != null && _dropdown.style.mode == "mobile") {
             if (_overlay == null) {
                 _overlay = new Component();
@@ -365,6 +386,10 @@ class DropDownEvents extends ButtonEvents {
         
         hideDropDown();
     }
+
+    // override and do nothing
+    private override function dispatchChanged() {
+    }
 }
 
 //***********************************************************************************************************
@@ -373,7 +398,7 @@ class DropDownEvents extends ButtonEvents {
 @:dox(hide) @:noCompletion
 @:access(haxe.ui.core.Component)
 @:access(haxe.ui.components.DropDownEvents)
-private class DropDownBuilder extends ButtonBuilder {
+class DropDownBuilder extends ButtonBuilder {
     
     public static var HANDLER_MAP:Map<String, String> = new Map<String, String>();
     

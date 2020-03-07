@@ -67,10 +67,10 @@ class ScrollView extends Component {
         var vscroll:VerticalScroll = findComponent(VerticalScroll);
         
         var rect = new Rectangle(contents.componentClipRect.left, contents.componentClipRect.top, contents.componentClipRect.width, contents.componentClipRect.height);
-        if (hscroll != null) {
+        if (hscroll != null && hscroll.hidden == false) {
             rect.height -= hscroll.height;
         }
-        if (vscroll != null) {
+        if (vscroll != null && vscroll.hidden == false) {
             rect.width -= vscroll.width;
         }
 
@@ -86,7 +86,9 @@ class ScrollView extends Component {
         if (vscroll != null) {
             var vpos:Float = vscroll.pos;
             if (component.top + component.height > vpos + rect.height) {
-                vscroll.pos = ((component.top + component.height) - rect.height);
+                // offset calc may be incorrect
+                var offset = (contents.layout.paddingTop + contents.layout.paddingBottom);
+                vscroll.pos = ((component.top + component.height) - rect.height) + offset;
             } else if (component.top < vpos) {
                 vscroll.pos = component.top;
             }
@@ -102,8 +104,9 @@ class ScrollView extends Component {
 private class Virtual extends DefaultBehaviour {
     public override function set(value:Variant) {
         super.set(value);
-        
-        cast(_component._compositeBuilder, ScrollViewBuilder).onVirtualChanged();
+        if (_component._compositeBuilder != null) {
+            cast(_component._compositeBuilder, ScrollViewBuilder).onVirtualChanged();
+        }
     }
 }
 
@@ -283,8 +286,14 @@ private class HScrollMax extends DataBehaviour {
     public override function validateData() { // TODO: feels a bit ugly!
         if (_scrollview.virtual == true) {
             var hscroll = _scrollview.findComponent(HorizontalScroll, false);
-            if (hscroll == null) {
-                hscroll = cast(_scrollview._compositeBuilder, ScrollViewBuilder).createHScroll();
+            if (_value > 0) {
+                if (hscroll == null) {
+                    hscroll = cast(_scrollview._compositeBuilder, ScrollViewBuilder).createHScroll();
+                }
+            } else {
+                if (hscroll != null) {
+                    cast(_scrollview._compositeBuilder, ScrollViewBuilder).destroyHScroll();
+                }
             }
             if (hscroll != null) {
                 hscroll.max = _value;
@@ -314,8 +323,14 @@ private class VScrollMax extends DataBehaviour {
     public override function validateData() { // TODO: feels a bit ugly!
         if (_scrollview.virtual == true) {
             var vscroll = _scrollview.findComponent(VerticalScroll, false);
-            if (vscroll == null) {
-                vscroll = cast(_scrollview._compositeBuilder, ScrollViewBuilder).createVScroll();
+            if (_value > 0) {
+                if (vscroll == null) {
+                    vscroll = cast(_scrollview._compositeBuilder, ScrollViewBuilder).createVScroll();
+                }
+            } else {
+                if (vscroll != null) {
+                    cast(_scrollview._compositeBuilder, ScrollViewBuilder).destroyVScroll();
+                }
             }
             if (vscroll != null) {
                 vscroll.max = _value;
@@ -816,9 +831,13 @@ class ScrollViewBuilder extends CompositeBuilder {
         return 0;
     }
     
+    @:access(haxe.ui.backend.ComponentBase)
     private function checkScrolls() {
-        var usableSize:Size = _component.layout.usableSize;
+        if (_component.isNativeScroller == true) {
+            return;
+        }
         
+        var usableSize:Size = _component.layout.usableSize;
         
         if (virtualHorizontal == false && usableSize.width > 0) {
             var horizontalConstraint = _contents;
@@ -835,7 +854,7 @@ class ScrollViewBuilder extends CompositeBuilder {
                 hscroll.syncComponentValidation();    //avoid another pass
             } else {
                 if (hscroll != null) {
-                    _component.removeComponent(hscroll);
+                    destroyHScroll();
                 }
             }
         }
@@ -855,13 +874,18 @@ class ScrollViewBuilder extends CompositeBuilder {
                 vscroll.syncComponentValidation();    //avoid another pass
             } else {
                 if (vscroll != null) {
-                    _component.removeComponent(vscroll);
+                    destroyVScroll();
                 }
             }
         }
     }
 
+    @:access(haxe.ui.backend.ComponentBase)
     public function createHScroll():HorizontalScroll {
+        if (_component.isNativeScroller == true) {
+            return null;
+        }
+        
         var usableSize:Size = _component.layout.usableSize;
         var horizontalConstraint = _contents;
         var hscroll:HorizontalScroll = _component.findComponent(HorizontalScroll, false);
@@ -886,7 +910,12 @@ class ScrollViewBuilder extends CompositeBuilder {
         return hscroll;
     }
     
+    @:access(haxe.ui.backend.ComponentBase)
     public function createVScroll():VerticalScroll {
+        if (_component.isNativeScroller == true) {
+            return null;
+        }
+        
         var usableSize:Size = _component.layout.usableSize;
         var verticalConstraint = _contents;
         var vscroll:VerticalScroll = _component.findComponent(VerticalScroll, false);
@@ -909,6 +938,22 @@ class ScrollViewBuilder extends CompositeBuilder {
         }
         
         return vscroll;
+    }
+    
+    @:access(haxe.ui.backend.ComponentBase)
+    public function destroyHScroll() {
+        var hscroll:HorizontalScroll = _component.findComponent(HorizontalScroll, false);
+        if (hscroll != null) {
+            _component.removeComponent(hscroll);
+        }
+    }
+    
+    @:access(haxe.ui.backend.ComponentBase)
+    public function destroyVScroll() {
+        var vscroll:VerticalScroll = _component.findComponent(VerticalScroll, false);
+        if (vscroll != null) {
+            _component.removeComponent(vscroll);
+        }
     }
     
     private function updateScrollRect() {

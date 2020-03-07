@@ -7,6 +7,7 @@ import haxe.ui.behaviours.DefaultBehaviour;
 import haxe.ui.core.InteractiveComponent;
 import haxe.ui.events.MouseEvent;
 import haxe.ui.events.Events;
+import haxe.ui.events.UIEvent;
 import haxe.ui.focus.FocusManager;
 import haxe.ui.layouts.DefaultLayout;
 import haxe.ui.styles.Style;
@@ -85,7 +86,7 @@ class Button extends InteractiveComponent {
     /**
      Whether this button is toggled or not (only relavant if toggle = true)
     **/
-    @:clonable @:behaviour(SelectedBehaviour)          public var selected:Bool;
+    @:clonable @:behaviour(SelectedBehaviour)           public var selected:Bool;
     
     /**
      The text (label) of this button
@@ -138,7 +139,7 @@ class ButtonLayout extends DefaultLayout {
                 if (icon != null && (iconPosition == "far-right" || iconPosition == "far-left" || iconPosition == "left" || iconPosition == "right")) {
                     cx -= icon.width + verticalSpacing;
                 }
-                //label.width = cx;
+                label.width = cx;
             }
         }
     }
@@ -320,26 +321,22 @@ private class ToggleBehaviour extends Behaviour {
 }
 
 @:dox(hide) @:noCompletion
-private class SelectedBehaviour extends Behaviour {
-    private var _value:Variant;
-    
-    public override function get():Variant {
-        return _value;
-    }
-    
-    public override function set(value:Variant) {
+@:access(haxe.ui.core.Component)
+@:access(haxe.ui.components.ButtonEvents)
+private class SelectedBehaviour extends DataBehaviour {
+    private override function validateData() {
         var button:Button = cast(_component, Button);
-        if (_value == value || button.toggle == false) {
+        if (button.toggle == false) {
             return;
         }
         
-        _value = value;
-        if (value == false) {
+        if (_value == false) {
             button.removeClass(":down");
         } else {
             button.addClass(":down");
         }
         button.removeClass(":hover");
+        cast(button._internalEvents, ButtonEvents).dispatchChanged();
     }
 }
 
@@ -472,6 +469,10 @@ class ButtonEvents extends haxe.ui.events.Events {
         if (_button.hitTest(event.screenX, event.screenY)) {
             _button.addClass(":hover");
         }
+    }
+    
+    private function dispatchChanged() {
+        _button.dispatch(new UIEvent(UIEvent.CHANGE));
     }
 }
 

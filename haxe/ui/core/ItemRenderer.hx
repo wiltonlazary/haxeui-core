@@ -1,8 +1,11 @@
 package haxe.ui.core;
 
+import haxe.ui.components.Button;
 import haxe.ui.containers.Box;
+import haxe.ui.events.ItemEvent;
 import haxe.ui.events.MouseEvent;
 import haxe.ui.events.UIEvent;
+import haxe.ui.util.TypeConverter;
 
 class ItemRenderer extends Box {
     public function new() {
@@ -67,16 +70,46 @@ class ItemRenderer extends Box {
                         fieldList.push(i);
                     }
                 }
+                _fieldList = fieldList;
             }
-            _fieldList = fieldList;
         }
         
         updateValues(_data, _fieldList);
+        
+        var components = findComponents(InteractiveComponent);
+        for (c in components) {
+            if (Std.is(c, Button)) {
+                if (c.hasEvent(MouseEvent.CLICK, onItemClick) == false) {
+                    c.registerEvent(MouseEvent.CLICK, onItemClick);
+                }
+            } else {
+                if (c.hasEvent(UIEvent.CHANGE, onItemChange) == false) {
+                    c.registerEvent(UIEvent.CHANGE, onItemChange);
+                }
+            }
+        }
     }
     
     private function onItemChange(event:UIEvent) {
         var v = event.target.value;
-        Reflect.setProperty(_data, event.target.id, v);
+        if (_data != null) {
+            Reflect.setProperty(_data, event.target.id, v);
+        }
+        var e = new ItemEvent(ItemEvent.COMPONENT_EVENT);
+        e.bubble = true;
+        e.source = event.target;
+        e.sourceEvent = event;
+        e.data = _data;
+        dispatch(e);
+    }
+    
+    private function onItemClick(event:UIEvent) {
+        var e = new ItemEvent(ItemEvent.COMPONENT_EVENT);
+        e.bubble = true;
+        e.source = event.target;
+        e.sourceEvent = event;
+        e.data = _data;
+        dispatch(e);
     }
     
     private function updateValues(value:Dynamic, fieldList:Array<String> = null) {
@@ -91,18 +124,14 @@ class ItemRenderer extends Box {
             } else {
                 var c:Component = findComponent(f, null, true);
                 if (c != null && v != null) {
-                    var propValue:Dynamic = v;
-                    
-                    if (propValue == "true" || propValue == "yes" || propValue == "false" || propValue == "no") {
-                        propValue = (propValue == "true" || propValue == "yes");
-                    } else if (~/^[0-9]*$/i.match(propValue)) {
-                        propValue = Std.parseInt(propValue);
-                    }
-                    
+                    var propValue:Dynamic = TypeConverter.convert(v);
                     c.value = propValue;
                     
                     if (c.hasEvent(UIEvent.CHANGE, onItemChange) == false) {
                         c.registerEvent(UIEvent.CHANGE, onItemChange);
+                    }
+                    if (c.hasEvent(MouseEvent.CLICK, onItemClick) == false) {
+                        c.registerEvent(MouseEvent.CLICK, onItemClick);
                     }
                     
                     c.show();

@@ -8,9 +8,12 @@ import haxe.ui.core.Screen;
 
 @:keep
 class HaxeUIApp extends AppImpl {
+    public static var instance:HaxeUIApp;
+    
     private var _options:ToolkitOptions;
     public function new(options:ToolkitOptions = null) {
         super();
+        instance = this;
         _options = options;
         Toolkit.build();
         build();
@@ -83,16 +86,16 @@ class HaxeUIApp extends AppImpl {
         }
     }
     
-    public function addComponent(component:Component) {
-        Screen.instance.addComponent(component);
+    public function addComponent(component:Component):Component {
+        return Screen.instance.addComponent(component);
     }
 
-    public function removeComponent(component:Component) {
-        Screen.instance.removeComponent(component);
+    public function removeComponent(component:Component):Component {
+        return Screen.instance.removeComponent(component);
     }
 
-    public function setComponentIndex(child:Component, index:Int) {
-        Screen.instance.setComponentIndex(child, index);
+    public function setComponentIndex(child:Component, index:Int):Component {
+        return Screen.instance.setComponentIndex(child, index);
     }
     
     private override function buildPreloadList():Array<PreloadItem> {

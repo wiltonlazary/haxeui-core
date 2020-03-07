@@ -171,6 +171,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         }
 
         _native = value;
+        customStyle.native = value;
         if (_native == true && hasNativeEntry) {
             addClass(":native");
         } else {
@@ -388,14 +389,10 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
             }
         }
         
-        handleRemoveComponent(child, dispose);
         if (_children != null) {
             if (_children.remove(child)) {
                 child.parentComponent = null;
                 child.depth = -1;
-            }
-            if (invalidate == true) {
-                invalidateComponentLayout();
             }
             if (dispose == true) {
                 child._isDisposed = true;
@@ -403,6 +400,10 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
                 child.unregisterEvents();
                 child.destroyComponent();
             }
+        }
+        handleRemoveComponent(child, dispose);
+        if (_children != null && invalidate == true) {
+            invalidateComponentLayout();
         }
 
         if (_compositeBuilder != null) {
@@ -481,6 +482,33 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
     }
 
     /**
+     Walk all children recursively, callback should return "true" if walking should continue
+    **/
+    public function walkComponents(callback:Component->Bool) {
+        if (callback(this) == false) {
+            return;
+        }
+        
+        for (child in childComponents) {
+            if (callback(child) == false) {
+                return;
+            }
+        }
+        
+        for (child in childComponents) {
+            var cont = true;
+            child.walkComponents(function(c) {
+                cont = callback(c);
+                return cont;
+            });
+            
+            if (cont == false) {
+                break;
+            }
+        }
+    }
+    
+    /**
      Removes all child components from this component instance
     **/
     @:dox(group = "Display tree related properties and methods")
@@ -548,6 +576,9 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
     }
 
     public function findComponents<T:Component>(styleName:String = null, type:Class<T> = null, maxDepth:Int = 5):Array<T> {
+        if (maxDepth == -1) {
+            maxDepth = 100;
+        }
         if (maxDepth <= 0) {
             return [];
         }
@@ -681,6 +712,13 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
     **/
     @:dox(group = "Display tree related properties and methods")
     public function hide() {
+        if (_compositeBuilder != null) {
+            var v = _compositeBuilder.hide();
+            if (v == true) {
+                return;
+            }
+        }
+        
         if (_hidden == false) {
             handleVisibility(false);
             _hidden = true;
@@ -697,6 +735,13 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
     **/
     @:dox(group = "Display tree related properties and methods")
     public function show() {
+        if (_compositeBuilder != null) {
+            var v = _compositeBuilder.show();
+            if (v == true) {
+                return;
+            }
+        }
+        
         if (_hidden == true) {
             handleVisibility(true);
             _hidden = false;

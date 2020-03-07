@@ -72,7 +72,8 @@ class VirtualLayout extends ScrollViewLayout {
         }
 
         if (result <= 0) {
-            result = 1; //Min value to render items
+            result = 25; // more sensible default? Other wise you can get 100's of item renderers for 0 length datasource which will then be removed on 2nd pass
+                         // may be ill-concieved
         }
 
         return result;
@@ -103,7 +104,15 @@ class VirtualLayout extends ScrollViewLayout {
         }
     }
 
+    private var _lastItemRenderer:ItemRenderer = null;
     private function refreshNonVirtualData() {
+        
+        var comp:IVirtualContainer = cast(_component, IVirtualContainer);
+        if (comp.itemRenderer != _lastItemRenderer) {
+            _lastItemRenderer = comp.itemRenderer;
+            contents.removeAllComponents();
+        }
+
         var dataSource:DataSource<Dynamic> = dataSource;
         var contents:Component = this.contents;
         for (n in 0...dataSource.size) {
@@ -147,6 +156,13 @@ class VirtualLayout extends ScrollViewLayout {
     }
 
     private function refreshVirtualData() {
+        var comp:IVirtualContainer = cast(_component, IVirtualContainer);
+        if (comp.itemRenderer != _lastItemRenderer) {
+            _lastItemRenderer = comp.itemRenderer;
+            contents.removeAllComponents();
+            _rendererPool = [];
+        }
+        
         removeInvisibleRenderers();
         calculateRangeVisible();
         updateScroll();
@@ -194,7 +210,7 @@ class VirtualLayout extends ScrollViewLayout {
             i++;
         }
 
-        while (contents.childComponents.length - 1 > i) {
+        while (contents.childComponents.length > i) {
             removeRenderer(cast(contents.childComponents[contents.childComponents.length - 1], ItemRenderer), false);    // remove last
         }
     }
@@ -220,6 +236,7 @@ class VirtualLayout extends ScrollViewLayout {
         }
     }
 
+    @:access(haxe.ui.backend.ComponentImpl)
     private function getRenderer(cls:Class<ItemRenderer>, index:Int):ItemRenderer {
         var instance:ItemRenderer = null;
         var comp:IVirtualContainer = cast(_component, IVirtualContainer);
@@ -247,6 +264,9 @@ class VirtualLayout extends ScrollViewLayout {
             _component.dispatch(new UIEvent(UIEvent.RENDERER_CREATED, instance));
         }
 
+        if (_component.hidden == false) {
+            instance.handleVisibility(true);
+        }
         return cast(instance, ItemRenderer);
     }
 
@@ -283,6 +303,9 @@ class VirtualLayout extends ScrollViewLayout {
     }
 
     private function isRendererVisible(renderer:Component):Bool {
+        if (renderer == null) {
+            return false;
+        }
         return renderer.top < _component.componentHeight &&
         renderer.top + renderer.componentHeight >= 0 &&
         renderer.left < _component.componentWidth &&

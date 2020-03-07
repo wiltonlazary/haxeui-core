@@ -27,6 +27,7 @@ import haxe.ui.styles.StyleSheet;
 import haxe.ui.themes.ThemeManager;
 import haxe.ui.util.GenericConfig;
 import haxe.ui.util.Properties;
+import haxe.ui.util.TypeConverter;
 import haxe.ui.util.Variant;
 
 class Toolkit {
@@ -106,7 +107,16 @@ class Toolkit {
     public static function messageBox(message:String, title:String = null, type:MessageBoxType = null, modal:Bool = true, callback:DialogButton->Void = null):Dialog {
         if (type == null) {
             type = MessageBoxType.TYPE_INFO;
+        } else if (type == "info") {
+            type = MessageBoxType.TYPE_INFO;
+        } else if (type == "question") {
+            type = MessageBoxType.TYPE_QUESTION;
+        } else if (type == "warning") {
+            type = MessageBoxType.TYPE_WARNING;
+        } else if (type == "error") {
+            type = MessageBoxType.TYPE_ERROR;
         }
+        
         var messageBox = new MessageBox();
         messageBox.type = type;
         messageBox.message = message;
@@ -233,12 +243,7 @@ class Toolkit {
             if (StringTools.startsWith(propName, "on")) {
                 component.addScriptEvent(propName, propValue);
             } else {
-                if (propValue == "true" || propValue == "yes" || propValue == "false" || propValue == "no") {
-                    propValue = (propValue == "true" || propValue == "yes");
-                } else if (Std.parseInt(propValue) != null) {
-                    propValue = Std.parseInt(propValue);
-                }
-                
+                propValue = TypeConverter.convert(propValue);
                 Reflect.setProperty(component, propName, propValue);
             }
         }

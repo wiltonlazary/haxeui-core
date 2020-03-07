@@ -1,23 +1,26 @@
 package haxe.ui.containers;
 
+import haxe.ui.behaviours.Behaviour;
+import haxe.ui.behaviours.DataBehaviour;
+import haxe.ui.behaviours.DefaultBehaviour;
+import haxe.ui.behaviours.LayoutBehaviour;
 import haxe.ui.binding.BindingManager;
 import haxe.ui.components.VerticalScroll;
 import haxe.ui.constants.SelectionMode;
-import haxe.ui.containers.ScrollView.ScrollViewBuilder;
 import haxe.ui.containers.ScrollView;
-import haxe.ui.behaviours.Behaviour;
+import haxe.ui.containers.ScrollView.ScrollViewBuilder;
 import haxe.ui.core.Component;
-import haxe.ui.behaviours.DataBehaviour;
-import haxe.ui.behaviours.DefaultBehaviour;
+import haxe.ui.core.CompositeBuilder;
 import haxe.ui.core.IDataComponent;
 import haxe.ui.core.InteractiveComponent;
 import haxe.ui.core.ItemRenderer;
-import haxe.ui.behaviours.LayoutBehaviour;
+import haxe.ui.data.ArrayDataSource;
+import haxe.ui.data.DataSource;
+import haxe.ui.data.transformation.NativeTypeTransformer;
+import haxe.ui.events.ItemEvent;
 import haxe.ui.events.MouseEvent;
 import haxe.ui.events.ScrollEvent;
 import haxe.ui.events.UIEvent;
-import haxe.ui.data.DataSource;
-import haxe.ui.data.transformation.NativeTypeTransformer;
 import haxe.ui.layouts.VerticalVirtualLayout;
 import haxe.ui.util.MathUtil;
 import haxe.ui.util.Variant;
@@ -39,6 +42,8 @@ class ListView extends ScrollView implements IDataComponent implements IVirtualC
     @:behaviour(SelectionModeBehaviour, SelectionMode.ONE_ITEM) public var selectionMode:SelectionMode;
     @:behaviour(DefaultBehaviour, 500)                          public var longPressSelectionTime:Int;  //ms
 
+    @:event(ItemEvent.COMPONENT_EVENT)                          public var onComponentEvent:ItemEvent->Void;
+    
     //TODO - error with Behaviour
     private var _itemRendererFunction:ItemRendererFunction2;
     public var itemRendererFunction(get, set):ItemRendererFunction2;
@@ -90,6 +95,7 @@ typedef ItemRendererFunction2 = Dynamic->Int->Class<ItemRenderer>;    //(data, i
 // Events
 //***********************************************************************************************************
 @:dox(hide) @:noCompletion
+@:access(haxe.ui.core.Component)
 class ListViewEvents extends ScrollViewEvents {
     private var _listview:ListView;
 
@@ -121,7 +127,8 @@ class ListViewEvents extends ScrollViewEvents {
         instance.registerEvent(MouseEvent.MOUSE_DOWN, onRendererMouseDown);
         instance.registerEvent(MouseEvent.CLICK, onRendererClick);
         if (_listview.selectedIndices.indexOf(instance.itemIndex) != -1) {
-            instance.addClass(":selected", true, true);
+            var builder:ListViewBuilder = cast(_listview._compositeBuilder, ListViewBuilder);
+            builder.addItemRendererClass(instance, ":selected");
         }
     }
 
@@ -130,7 +137,8 @@ class ListViewEvents extends ScrollViewEvents {
         instance.unregisterEvent(MouseEvent.MOUSE_DOWN, onRendererMouseDown);
         instance.unregisterEvent(MouseEvent.CLICK, onRendererClick);
         if (_listview.selectedIndices.indexOf(instance.itemIndex) != -1) {
-            instance.removeClass(":selected", true, true);
+            var builder:ListViewBuilder = cast(_listview._compositeBuilder, ListViewBuilder);
+            builder.addItemRendererClass(instance, ":selected", false);
         }
     }
 
@@ -186,7 +194,7 @@ class ListViewEvents extends ScrollViewEvents {
                     renderer.registerEvent(MouseEvent.CLICK, __onMouseClick, 1);
                 }
             }
-        }, 500);   //TODO - configurable
+        }, _listview.longPressSelectionTime);
     }
     
     private override function onContainerEventsStatusChanged() {
@@ -303,10 +311,13 @@ private class ListViewBuilder extends ScrollViewBuilder {
         }
     }
     
+    @:access(haxe.ui.backend.ComponentImpl)
     public override function addComponent(child:Component):Component {
         var r = null;
         if (Std.is(child, ItemRenderer) && (_listview.itemRenderer == null && _listview.itemRendererFunction == null && _listview.itemRendererClass == null)) {
             _listview.itemRenderer = cast(child, ItemRenderer);
+            _listview.itemRenderer.ready();
+            _listview.itemRenderer.handleVisibility(false);
             r = child;
         } else {
             r = super.addComponent(child);
@@ -316,6 +327,21 @@ private class ListViewBuilder extends ScrollViewBuilder {
     
     public override function onVirtualChanged() {
         _contents.layoutName = _listview.virtual ? "absolute" : "vertical";
+    }
+    
+    public function addItemRendererClass(child:Component, className:String, add:Bool = true) {
+        child.walkComponents(function(c) {
+            if (Std.is(c, ItemRenderer)) {
+                if (add == true) {
+                    c.addClass(className);
+                } else {
+                    c.removeClass(className);
+                }
+            } else {
+                c.invalidateComponentStyle(); // we do want to invalidate the other components incase the css rule applies indirectly
+            }
+            return true;
+        });
     }
 }
 
@@ -343,6 +369,14 @@ private class DataSourceBehaviour extends DataBehaviour {
         } else {
             _component.invalidateComponentLayout();
         }
+    }
+    
+    public override function get():Variant {
+        if (_value == null || _value.isNull) {
+            _value = new ArrayDataSource<Dynamic>();
+            set(_value);
+        }
+        return _value;
     }
 }
 
@@ -378,6 +412,7 @@ private class SelectedItemBehaviour extends Behaviour {
 }
 
 @:dox(hide) @:noCompletion
+@:access(haxe.ui.core.Component)
 private class SelectedIndicesBehaviour extends DataBehaviour {
     public override function get():Variant {
         return _value.isNull ? [] : _value;
@@ -388,12 +423,14 @@ private class SelectedIndicesBehaviour extends DataBehaviour {
         var selectedIndices:Array<Int> = listView.selectedIndices;
         var contents:Component = _component.findComponent("scrollview-contents", false, "css");
         var itemToEnsure:ItemRenderer = null;
+        var builder:ListViewBuilder = cast(_component._compositeBuilder, ListViewBuilder);
+        
         for (child in contents.childComponents) {
             if (selectedIndices.indexOf(cast(child, ItemRenderer).itemIndex) != -1) {
                 itemToEnsure = cast(child, ItemRenderer);
-                child.addClass(":selected", true, true);
+                builder.addItemRendererClass(child, ":selected");
             } else {
-                child.removeClass(":selected", true, true);
+                builder.addItemRendererClass(child, ":selected", false);
             }
         }
 

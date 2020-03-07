@@ -56,21 +56,21 @@ class EventMap  {
         } 
         
         var arr:FunctionArray<UIEvent->Void> = _map.get(type);
-        if (arr != null) {
+		if (arr != null && arr.length > 0) {
             arr = arr.copy();
-            for (listener in arr) {
-                if (event.canceled) { 
-                    break; 
-                } 
-                
-                var c = event.clone();
-                if (c.target == null) {
-                    c.target = target; 
-                }
-                listener.callback(c);
-                event.canceled = c.canceled; 
-            }
-        }
+			for (listener in arr) {
+				if (event.canceled) { 
+					break; 
+				} 
+				
+				var c = event.clone();
+				if (c.target == null) {
+					c.target = target; 
+				}
+				listener.callback(c);
+				event.canceled = c.canceled; 
+			}
+		}
     }
 
     public function listenerCount(type:String):Int {

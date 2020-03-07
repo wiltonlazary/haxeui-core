@@ -240,10 +240,17 @@ private class Events extends haxe.ui.events.Events  {
         coord.y = (e.screenY - _slider.screenTop - _offset.y) - _slider.paddingTop +  (_activeThumb.height / 2);
         var pos:Float = _slider.posFromCoord(coord);
         
+        var start:Float = 0;
+        if (_slider.start != null) {
+            start = _slider.start;
+        }
+        
         if (_activeThumb == _startThumb) {
+            pos -= start;
             _slider.start = pos;
         } else if (_activeThumb == _endThumb) {
-             _slider.end = pos;
+            pos -= start;
+            _slider.end = pos;
         }
     }
 }
