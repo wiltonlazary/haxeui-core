@@ -46,15 +46,15 @@ private class Layout extends DefaultLayout {
             
             tabs.left = paddingLeft;
             if (tabs.height != 0) {
-                tabs.top = component.height - tabs.height - paddingBottom;
+                tabs.top = component.height - tabs.height - paddingBottom + marginTop(tabs);
             }
         } else {
             tabs.left = paddingLeft;
-            tabs.top = paddingTop;
+            tabs.top = paddingTop + marginTop(tabs);
 
             content.left = paddingLeft;
             if (tabs.height != 0) {
-                content.top = tabs.top + tabs.height - 1;
+                content.top = tabs.top + tabs.height - marginTop(tabs);
             }
         }
     }
@@ -396,9 +396,10 @@ private class Builder extends CompositeBuilder {
                 match = view.findComponent(criteria, type, recursive, searchType);
                 if (view.matchesSearch(criteria, type, searchType)) {
                     return cast view;
-			 } else {
+                } else {
                     match = view.findComponent(criteria, type, recursive, searchType);
                 }
+                
                 if (match != null) {
                     break;
                 }

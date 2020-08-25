@@ -12,6 +12,8 @@ class ItemRenderer extends Box {
         super();
         registerEvent(MouseEvent.MOUSE_OVER, _onItemMouseOver);
         registerEvent(MouseEvent.MOUSE_OUT, _onItemMouseOut);
+        registerEvent(MouseEvent.MOUSE_DOWN, _onItemMouseDown);
+        registerEvent(MouseEvent.MOUSE_UP, _onItemMouseUp);
     }
 
     private function _onItemMouseOver(event:MouseEvent) {
@@ -20,6 +22,14 @@ class ItemRenderer extends Box {
 
     private function _onItemMouseOut(event:MouseEvent) {
         removeClass(":hover");
+    }
+
+    private function _onItemMouseDown(event:MouseEvent) {
+        addClass(":down");
+    }
+
+    private function _onItemMouseUp(event:MouseEvent) {
+        removeClass(":down");
     }
 
     private var _allowHover:Bool = true;
@@ -61,16 +71,25 @@ class ItemRenderer extends Box {
 
     private var _fieldList:Array<String> = null; // is caching a good idea?
     private override function validateComponentData() {
-        if (_fieldList == null || _fieldList.length == 0) {
-            var fieldList:Array<String> = Reflect.fields(_data);
-            if (Type.getClass(_data) != null) {
-                var instanceFields = Type.getInstanceFields(Type.getClass(_data));
-                for (i in instanceFields) {
-                    if (Reflect.isFunction(Reflect.getProperty(_data, i)) == false && fieldList.indexOf(i) == -1) {
-                        fieldList.push(i);
+        if (_data != null && (_fieldList == null || _fieldList.length == 0)) {
+            switch (Type.typeof(_data)) {
+                case TObject | TClass(_):
+                    if (Std.is(_data, String) == false) {
+                        var fieldList:Array<String> = Reflect.fields(_data);
+                        if (Type.getClass(_data) != null) {
+                            var instanceFields = Type.getInstanceFields(Type.getClass(_data));
+                            for (i in instanceFields) {
+                                if (Reflect.isFunction(Reflect.getProperty(_data, i)) == false && fieldList.indexOf(i) == -1) {
+                                    fieldList.push(i);
+                                }
+                            }
+                            _fieldList = fieldList;
+                        }
+                    } else {
+                        _fieldList = ["text"];
                     }
-                }
-                _fieldList = fieldList;
+                case _:    
+                    _fieldList = ["text"];
             }
         }
         
@@ -99,6 +118,7 @@ class ItemRenderer extends Box {
         e.bubble = true;
         e.source = event.target;
         e.sourceEvent = event;
+        e.itemIndex = itemIndex;
         e.data = _data;
         dispatch(e);
     }
@@ -108,6 +128,7 @@ class ItemRenderer extends Box {
         e.bubble = true;
         e.source = event.target;
         e.sourceEvent = event;
+        e.itemIndex = itemIndex;
         e.data = _data;
         dispatch(e);
     }
@@ -117,8 +138,20 @@ class ItemRenderer extends Box {
             fieldList = Reflect.fields(value);
         }
         
+        var valueObject = null;
+        switch (Type.typeof(value)) {
+            case TObject | TClass(_):
+                if (Std.is(value, String) == false) {
+                    valueObject = value;
+                } else {
+                    valueObject = {text: value};
+                }
+            case _:
+                valueObject = {text: value};
+        }
+
         for (f in fieldList) {
-            var v = Reflect.getProperty(value, f);
+            var v = Reflect.getProperty(valueObject, f);
             if (Type.typeof(v) == TObject) {
                 updateValues(v);
             } else {

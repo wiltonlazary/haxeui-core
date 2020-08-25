@@ -7,14 +7,13 @@
     padding-right: 5px;
     height: auto;
     width: auto;
-    background-color: white;
     border-bottom-width: 1px;
     border-bottom-color: #ABABAB;
     border-top-width: 0px;
     clip: true;
 }
 
-.tabbar .tabbar-contents {
+.tabbar > .tabbar-contents {
     border: none;
     border-bottom-width: 1px;
     border-bottom-color: #ABABAB;
@@ -47,11 +46,13 @@
 .tabbar-scroll-left {
     icon: "haxeui-core/styles/default/left_arrow.png";
     border-radius: 0;
+    padding: 5px;
 }
 
 .tabbar-scroll-right {
     icon: "haxeui-core/styles/default/right_arrow.png";
     border-radius: 0;
+    padding: 5px;
 }
 
 .tabbar-button-selected .label {
@@ -108,10 +109,16 @@
     height: auto;
 }
 
-.tabview .tabview-tabs {
+.tabview > .tabview-tabs {
+    margin-top: 1px;
 }
 
-.tabview .tabview-content {
+.tabview:bottom > .tabview-tabs {
+    margin-top: -1px;
+}
+
+.tabview > .tabview-content {
     border: 1px solid #ABABAB;
     padding: 5px;
+    background-color: white;
 }

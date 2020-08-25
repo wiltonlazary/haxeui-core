@@ -125,7 +125,7 @@ class Macros {
             }
             
             var getter = builder.addGetter(f.name, f.type, macro {
-                if ($p{["customStyle", f.name]} != $v{defaultValue}) {
+                if ($p{["customStyle", f.name]} != null) {
                     return $p{["customStyle", f.name]};
                 }
                 if (style == null || $p{["style", f.name]} == null) {
@@ -134,7 +134,7 @@ class Macros {
                 return $p{["style", f.name]};
             });
             getter.addMeta(":style");
-            getter.addMeta(":clonable");
+            //getter.addMeta(":clonable");
             getter.addMeta(":dox", [macro group = "Style properties"]);
             
             var codeBuilder = new CodeBuilder(macro {
@@ -142,7 +142,7 @@ class Macros {
                     return value;
                 }
                 if (_style == null) {
-                    _style = new haxe.ui.styles.Style();
+                    _style = {};
                 }
                 $p{["customStyle", f.name]} = value;
                 invalidateComponentStyle();
@@ -163,43 +163,61 @@ class Macros {
     }
 
     private static function buildPropertyBinding(builder:ClassBuilder, f:FieldBuilder, variable:Expr, field:String) {
-        f.remove();
+        var hasGetter = builder.findFunction("get_" + f.name) != null;
+        var hasSetter = builder.findFunction("set_" + f.name) != null;
+        
+        if (hasGetter == false && hasSetter == false) {
+            f.remove();
+        }
 
         var variable = ExprTools.toString(variable);
-
-        builder.addGetter(f.name, f.type, macro {
-            var c = findComponent($v{variable});
-            if (c == null) {
-                trace("WARNING: no child component found: " + $v{variable});
-                return Reflect.getProperty(c, $v{field});
-            }
-            var fieldIndex = Type.getInstanceFields(Type.getClass(c)).indexOf("get_" + $v{field});
-            if (fieldIndex == -1) {
-                trace("WARNING: no component getter found: " + $v{field});
-                return Reflect.getProperty(c, $v{field});
-            }
-            return Reflect.getProperty(c, $v{field});
-        });
-        builder.addSetter(f.name, f.type, macro {
-            if (value != $i{f.name}) {
+        if (hasGetter == false) {
+            builder.addGetter(f.name, f.type, macro {
                 var c = findComponent($v{variable});
                 if (c == null) {
                     trace("WARNING: no child component found: " + $v{variable});
-                    return value;
+                    return Reflect.getProperty(c, $v{field});
                 }
-                var fieldIndex = Type.getInstanceFields(Type.getClass(c)).indexOf("set_" + $v{field});
+                var fieldIndex = Type.getInstanceFields(Type.getClass(c)).indexOf("get_" + $v{field});
                 if (fieldIndex == -1) {
-                    trace("WARNING: no component setter found: " + $v{field});
-                    return value;
+                    trace("WARNING: no component getter found: " + $v{field});
+                    return Reflect.getProperty(c, $v{field});
                 }
-                Reflect.setProperty(c, $v{field}, value);
-            }
-            return value;
-        });
+                return Reflect.getProperty(c, $v{field});
+            });
+        }
+        
+        if (hasSetter == false) {
+            builder.addSetter(f.name, f.type, macro {
+                if (value != $i{f.name}) {
+                    var c = findComponent($v{variable});
+                    if (c == null) {
+                        trace("WARNING: no child component found: " + $v{variable});
+                        return value;
+                    }
+                    var fieldIndex = Type.getInstanceFields(Type.getClass(c)).indexOf("set_" + $v{field});
+                    if (fieldIndex == -1) {
+                        trace("WARNING: no component setter found: " + $v{field});
+                        return value;
+                    }
+                    Reflect.setProperty(c, $v{field}, value);
+                }
+                return value;
+            });
+        }
+        
         if (f.expr != null) {
             builder.constructor.add(macro
                 $i{f.name} = $e{f.expr}
             , AfterSuper);
+        }
+        
+        if (hasSetter == true) {
+            builder.constructor.add(macro {
+                $i{variable}.registerEvent(haxe.ui.events.UIEvent.CHANGE, function(e) {
+                    $i{f.name} = Reflect.getProperty($i{variable}, $v{field});
+                });
+            });
         }
     }
     
@@ -292,18 +310,43 @@ class Macros {
         });
         cloneFn.add(macro return c);
 
-        // add "self" function
-        var access:Array<Access> = [APrivate];
-        if (useSelf == false) {
-            access.push(AOverride);
+        var hasOverriddenSelf = (builder.findFunction("self") != null);
+        
+        var constructorArgExprs = null;
+        if (hasOverriddenSelf == false) {
+            var hasConstructorArgs = false;
+            var constuctor = builder.findFunction("new");
+            if (constuctor != null) {
+                hasConstructorArgs = (constuctor.argCount > 0);
+                if (hasConstructorArgs == true) {
+                    constructorArgExprs = [];
+                    for (arg in constuctor.fn.args) {
+                        var varName = "_constructorParam_" + arg.name;
+                        builder.addVar(varName, arg.type, null, null, [{name: ":noCompletion", pos: Context.currentPos()}]);
+                        constructorArgExprs.push(macro this.$varName);
+                    }
+                }
+            }
+            
+            // add "self" function
+            var access:Array<Access> = [APrivate];
+            if (useSelf == false) {
+                access.push(AOverride);
+            }
+            var typePath = builder.typePath;
+            if (constructorArgExprs == null) {
+                builder.addFunction("self", macro { 
+                    return new $typePath();
+                }, builder.path, access);
+            } else {
+                builder.addFunction("self", macro {
+                    return new $typePath($a{constructorArgExprs});
+                }, builder.path, access);
+            }
         }
-        var typePath = builder.typePath;
-        builder.addFunction("self", macro {
-            return new $typePath();
-        }, builder.path, access);
     }
     
-    #if (haxe_ver < 4)
+    #if ((haxe_ver < 4) || haxeui_heaps)
     // TODO: this is a really ugly haxe3 hack / workaround - once haxe4 stabalises this *MUST* be removed - its likely brittle and ill conceived!
     public static var _cachedFields:Map<String, Array<Field>> = new Map<String, Array<Field>>();
     #end
@@ -317,6 +360,7 @@ class Macros {
         }
         
         var valueField = builder.getFieldMetaValue("value");
+        var resolvedValueField = null;
         for (f in builder.getFieldsWithMeta("behaviour")) {
             f.remove();
             if (builder.hasField(f.name, true) == false) { // check to see if it already exists, possibly in a super class
@@ -332,16 +376,32 @@ class Macros {
                 }
                 
                 if (f.name == valueField) {
-                    newField = builder.addSetter(f.name, f.type, macro { // add a normal (Variant) setter but let the binding manager know that the value has changed
-                        behaviours.set($v{f.name}, value);
-                        haxe.ui.binding.BindingManager.instance.componentPropChanged(this, "value");
-                        return value;
-                    }, f.access);
+                    if (f.isDynamic == true) {
+                        newField = builder.addSetter(f.name, f.type, macro { // add a normal (Variant) setter but let the binding manager know that the value has changed
+                            behaviours.set($v{f.name}, haxe.ui.util.Variant.fromDynamic(value));
+                            haxe.ui.binding.BindingManager.instance.componentPropChanged(this, "value");
+                            return value;
+                        }, f.access);
+                    } else {
+                        newField = builder.addSetter(f.name, f.type, macro { // add a normal (Variant) setter but let the binding manager know that the value has changed
+                            behaviours.set($v{f.name}, value);
+                            haxe.ui.binding.BindingManager.instance.componentPropChanged(this, "value");
+                            return value;
+                        }, f.access);
+                    }
+                    resolvedValueField = newField;
                 } else {
-                    newField = builder.addSetter(f.name, f.type, macro { // add a normal (Variant) setter
-                        behaviours.set($v{f.name}, value);
-                        return value;
-                    }, f.access);
+                    if (f.isDynamic == true) {
+                        newField = builder.addSetter(f.name, f.type, macro { // add a normal (Variant) setter
+                            behaviours.set($v{f.name}, haxe.ui.util.Variant.fromDynamic(value));
+                            return value;
+                        }, f.access);
+                    } else {
+                        newField = builder.addSetter(f.name, f.type, macro { // add a normal (Variant) setter
+                            behaviours.set($v{f.name}, value);
+                            return value;
+                        }, f.access);
+                    }
                 }
                 
                 newField.doc = f.doc;
@@ -388,15 +448,27 @@ class Macros {
             f.remove();
             
             var propName = f.getMetaValueString("value");
-            builder.addGetter(f.name, macro: Dynamic, macro {
-                return $i{propName};
-            }, false, true);
-            
-            builder.addSetter(f.name, macro: Dynamic, macro {
-                $i{propName} = value;
-                haxe.ui.binding.BindingManager.instance.componentPropChanged(this, $v{propName});
-                return value;
-            }, false, true);
+            if (resolvedValueField != null && resolvedValueField.isVariant) {
+                builder.addGetter(f.name, macro: Dynamic, macro {
+                    return haxe.ui.util.Variant.toDynamic($i{propName});
+                }, false, true);
+                
+                builder.addSetter(f.name, macro: Dynamic, macro {
+                    $i{propName} = haxe.ui.util.Variant.fromDynamic(value);
+                    haxe.ui.binding.BindingManager.instance.componentPropChanged(this, $v{propName});
+                    return value;
+                }, false, true);
+            } else {
+                builder.addGetter(f.name, macro: Dynamic, macro {
+                    return $i{propName};
+                }, false, true);
+                
+                builder.addSetter(f.name, macro: Dynamic, macro {
+                    $i{propName} = value;
+                    haxe.ui.binding.BindingManager.instance.componentPropChanged(this, $v{propName});
+                    return value;
+                }, false, true);
+            }
         }
         
         //buildEvents(builder);
@@ -407,7 +479,7 @@ class Macros {
             buildClonable(builder);
         }
 
-        #if (haxe_ver < 4)        
+        #if ((haxe_ver < 4) || haxeui_heaps)        
         // TODO: this is a really ugly haxe3 hack / workaround - once haxe4 stabalises this *MUST* be removed - its likely brittle and ill conceived!
         _cachedFields.set(builder.fullPath, builder.fields);
         #end

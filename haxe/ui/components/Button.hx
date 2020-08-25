@@ -101,7 +101,7 @@ class Button extends InteractiveComponent {
     /**
      The image resource to use as the buttons icon
     **/
-    @:clonable @:behaviour(IconBehaviour)              public var icon:String;
+    @:clonable @:behaviour(IconBehaviour)              public var icon:Variant;
     
     //***********************************************************************************************************
     // Overrides
@@ -331,12 +331,18 @@ private class SelectedBehaviour extends DataBehaviour {
         }
         
         if (_value == false) {
-            button.removeClass(":down");
+            button.removeClass(":down", true, true);
         } else {
-            button.addClass(":down");
+            button.addClass(":down", true, true);
         }
-        button.removeClass(":hover");
-        cast(button._internalEvents, ButtonEvents).dispatchChanged();
+        var events = cast(button._internalEvents, ButtonEvents);
+        if (events.lastMouseEvent != null && button.hitTest(events.lastMouseEvent.screenX, events.lastMouseEvent.screenY)) {
+            button.addClass(":hover", true, true);
+            events.lastMouseEvent = null;
+        } else {
+            button.removeClass(":hover", true, true);
+        }
+        events.dispatchChanged();
     }
 }
 
@@ -350,6 +356,8 @@ class ButtonEvents extends haxe.ui.events.Events {
     private var _repeatTimer:Timer;
 	private var _repeater:Bool = false;
 	private var _repeatInterval:Int = 0;
+    
+    public var lastMouseEvent:MouseEvent = null;
     
     public function new(button:Button) {
         super(button);
@@ -385,9 +393,9 @@ class ButtonEvents extends haxe.ui.events.Events {
         }
 
         if (event.buttonDown == false || _down == false) {
-            _button.addClass(":hover");
+            _button.addClass(":hover", true, true);
         } else {
-            _button.addClass(":down");
+            _button.addClass(":down", true, true);
         }
     }
     
@@ -397,9 +405,9 @@ class ButtonEvents extends haxe.ui.events.Events {
         }
 
         if (_button.remainPressed == false) {
-            _button.removeClass(":down");
+            _button.removeClass(":down", true, true);
         }
-        _button.removeClass(":hover");
+        _button.removeClass(":hover", true, true);
     }
     
     private function onMouseDown(event:MouseEvent) {
@@ -410,7 +418,7 @@ class ButtonEvents extends haxe.ui.events.Events {
 			_repeatInterval = (_button.easeInRepeater) ? _button.repeatInterval * 2 : _button.repeatInterval;
 		}
         _down = true;
-        _button.addClass(":down");
+        _button.addClass(":down", true, true);
         _button.screen.registerEvent(MouseEvent.MOUSE_UP, onMouseUp);
         if (_repeater == true && _repeatInterval == _button.repeatInterval) {
             _repeatTimer = new Timer(_repeatInterval, onRepeatTimer);
@@ -443,10 +451,15 @@ class ButtonEvents extends haxe.ui.events.Events {
             return;
         }
 
-        _button.removeClass(":down");
-        if (event.touchEvent == false && _button.hitTest(event.screenX, event.screenY)) {
-            _button.addClass(":hover");
-        }
+        _button.removeClass(":down", true, true);
+        Toolkit.callLater(function() { // lets wait a frame as button could have moved (edge case)
+            var over = _button.hitTest(event.screenX, event.screenY);
+            if (event.touchEvent == false && over == true) {
+                _button.addClass(":hover", true, true);
+            } else if (over == false) {
+                _button.removeClass(":hover", true, true);
+            }
+        });
 
         if (_repeatTimer != null) {
             _repeatTimer.stop();
@@ -464,10 +477,10 @@ class ButtonEvents extends haxe.ui.events.Events {
     private function onMouseClick(event:MouseEvent) {
         _button.selected = !_button.selected;
         if (_button.selected == false) {
-            _button.removeClass(":down");
+            _button.removeClass(":down", true, true);
         }
         if (_button.hitTest(event.screenX, event.screenY)) {
-            _button.addClass(":hover");
+            _button.addClass(":hover", true, true);
         }
     }
     

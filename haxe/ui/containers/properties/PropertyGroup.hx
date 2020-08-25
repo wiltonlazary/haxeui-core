@@ -7,6 +7,7 @@ import haxe.ui.components.Image;
 import haxe.ui.components.Label;
 import haxe.ui.components.NumberStepper;
 import haxe.ui.components.TextField;
+import haxe.ui.containers.properties.Property.PropertyBuilder;
 import haxe.ui.core.Component;
 import haxe.ui.core.CompositeBuilder;
 import haxe.ui.events.MouseEvent;
@@ -75,6 +76,13 @@ private class Builder extends CompositeBuilder {
         _propertyGroup = propertyGroup;
     }
     
+    public override function onReady() {
+        var propGrid = _component.findAncestor(PropertyGrid);
+        for (c in _propertyGroupContents.findComponents(DropDown)) {
+            c.handlerStyleNames = propGrid.popupStyleNames;
+        }
+    }
+    
     public override function create() {
         _propertyGroupHeader = new HBox();
         _propertyGroupHeader.scriptAccess = false;
@@ -116,6 +124,7 @@ private class Builder extends CompositeBuilder {
             label.text = prop.label;
             label.addClass("property-group-item-label");
             labelContainer.addComponent(label);
+            cast(prop._compositeBuilder, PropertyBuilder).label = label;
 
             var editorContainer = new Box();
             editorContainer.scriptAccess = false;
@@ -128,7 +137,8 @@ private class Builder extends CompositeBuilder {
             editor.addClass("property-group-item-editor");
             editorContainer.addComponent(editor);
             editor.registerEvent(UIEvent.CHANGE, onPropertyEditorChange);
-            
+            cast(prop._compositeBuilder, PropertyBuilder).editor = editor;
+
             _propertyGroup.registerInternalEvents(Events, true);
             
             return editor;
@@ -172,6 +182,10 @@ private class Builder extends CompositeBuilder {
                     }
                 }
                 cast(c, DropDown).selectedIndex = indexToSelect;
+
+            case "date":
+                c = new DropDown();
+                cast(c, DropDown).type = "date";
                 
             default:     
                 c = new TextField();

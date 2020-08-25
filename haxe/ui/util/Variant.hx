@@ -1,5 +1,6 @@
 package haxe.ui.util;
 
+import haxe.ui.backend.ImageData;
 import haxe.ui.core.Component;
 import haxe.ui.data.DataSource;
 
@@ -12,6 +13,7 @@ enum VariantType {
     VT_DataSource(s:DataSource<Dynamic>);
     VT_Component(s:Component);
     VT_Date(s:Date);
+    VT_ImageData(s:ImageData);
 }
 
 abstract Variant(VariantType) from VariantType {
@@ -33,8 +35,9 @@ abstract Variant(VariantType) from VariantType {
             case VT_Bool(s): Std.string(s);
             case VT_Array(s): Std.string(s);
             case VT_Component(s): Std.string(s);
-            case VT_DataSource(s): "";
+            case VT_DataSource(_): "";
             case VT_Date(s): Std.string(s);
+            case VT_ImageData(s): "";
             default: throw "Variant Type Error";
         }
     }
@@ -206,6 +209,32 @@ abstract Variant(VariantType) from VariantType {
     private function get_isComponent():Bool {
         switch (this) {
             case VT_Component(_): return true;
+            default:
+        }
+        return false;
+    }
+
+    // ************************************************************************************************************
+    // IMAGE DATA
+    // ************************************************************************************************************
+    @:from public static function fromImageData(s:ImageData):Variant {
+        return VT_ImageData(s);
+    }
+
+    @:to public function toImageData():ImageData {
+        if (this == null) {
+            return null;
+        }
+        return switch (this) {
+            case VT_ImageData(s): s;
+            default: throw "Variant Type Error";
+        }
+    }
+
+    public var isImageData(get, never):Bool;
+    private function get_isImageData():Bool {
+        switch (this) {
+            case VT_ImageData(_): return true;
             default:
         }
         return false;
@@ -442,7 +471,7 @@ abstract Variant(VariantType) from VariantType {
         return this == null || toString() == null;
     }
 
-    public static function fromDynamic(r:Dynamic):Variant {
+    public static function fromDynamic<T>(r:Dynamic):Variant {
         var v:Variant = null;
         if (r != null) {
             if (containsOnlyDigits(r) && Math.isNaN(Std.parseFloat("" + r)) == false) {
@@ -454,13 +483,19 @@ abstract Variant(VariantType) from VariantType {
             } else if ((("" + r) == "true" || (r + "") == "false")) {
                 v = (("" + r) == "true");
             } else if (Std.is(r, String)) {
-                v = Std.string(r);
+                v = cast(r, String);
             } else if (Std.is(r, Component)) {
-                v =  cast r;
+                v = cast(r, Component);
             } else if (Std.is(r, DataSource)) {
-                v =  cast r;
+                v = cast r;
+            } else if (Std.is(r, Array)) {
+                v = cast r;
+            } else if (Std.is(r, Date)) {
+                v = cast(r, Date);
+            } else if (Std.is(r, ImageData)) {
+                v = cast(r, ImageData);
             } else {
-                v = Std.string(r);
+                v = r;
             }
         }
         return v;
@@ -492,7 +527,8 @@ abstract Variant(VariantType) from VariantType {
                 case VariantType.VT_Array(y):          d = y;
                 case VariantType.VT_Component(y):      d = y;
                 case VariantType.VT_DataSource(y):     d = y;
-                case VariantType.VT_Date(y):             d = y;
+                case VariantType.VT_Date(y):           d = y;
+                case VariantType.VT_ImageData(y):      d = y;
             }
         }
         return d;

@@ -1,5 +1,6 @@
 package haxe.ui.containers.menus;
 
+import haxe.ui.behaviours.DefaultBehaviour;
 import haxe.ui.containers.VBox;
 import haxe.ui.core.Component;
 import haxe.ui.core.CompositeBuilder;
@@ -34,6 +35,7 @@ class MenuEvent extends UIEvent {
 
 @:composite(MenuEvents, Builder)
 class Menu extends VBox {
+    @:behaviour(DefaultBehaviour)           public var menuStyleNames:String;
 }
 
 //***********************************************************************************************************
@@ -144,14 +146,16 @@ class MenuEvents extends haxe.ui.events.Events {
     
     private function showSubMenu(subMenu:Menu, source:MenuItem) {
         hideCurrentSubMenu();
-        
-        var left = source.screenLeft + source.width;
+        subMenu.menuStyleNames = _menu.menuStyleNames;
+        subMenu.addClass(_menu.menuStyleNames);
+        var componentOffset = source.getComponentOffset();
+        var left = source.screenLeft + source.actualComponentWidth + componentOffset.x;
         var top = source.screenTop;
         Screen.instance.addComponent(subMenu);
         subMenu.syncComponentValidation();
 
-        if (left + subMenu.width > Screen.instance.width) {
-            left = source.screenLeft - subMenu.width;
+        if (left + subMenu.actualComponentWidth > Screen.instance.width) {
+            left = source.screenLeft - subMenu.actualComponentWidth;
         }
         
         subMenu.left = left;
@@ -233,5 +237,24 @@ private class Builder extends CompositeBuilder {
         if (Std.is(child, Menu) || Std.is(child, MenuItem)) {
             _menu.registerInternalEvents(true);
         }
+    }
+    
+    public override function findComponent<T:Component>(criteria:String, type:Class<T>, recursive:Null<Bool>, searchType:String):Null<T> {
+        var match = super.findComponent(criteria, type, recursive, searchType);
+        if (match == null) {
+            for (menu in _subMenus) {
+                match = menu.findComponent(criteria, type, recursive, searchType);
+                if (menu.matchesSearch(criteria, type, searchType)) {
+                    return cast menu;
+                } else {
+                    match = menu.findComponent(criteria, type, recursive, searchType);
+                }
+                
+                if (match != null) {
+                    break;
+                }
+            }
+        }
+        return cast match;
     }
 }

@@ -6,7 +6,6 @@ import haxe.ui.behaviours.DataBehaviour;
 import haxe.ui.layouts.DefaultLayout;
 import haxe.ui.styles.Style;
 import haxe.ui.geom.Size;
-import haxe.ui.util.Variant;
 
 @:composite(Builder, LabelLayout)
 class Label extends Component {
@@ -19,8 +18,8 @@ class Label extends Component {
     // Public API
     //***********************************************************************************************************
     @:clonable @:behaviour(TextBehaviour)       public var text:String;
-    @:clonable @:behaviour(TextBehaviour)       public var value:Variant;
     @:clonable @:behaviour(HtmlTextBehaviour)   public var htmlText:String;
+    @:clonable @:value(text)                    public var value:Dynamic;
 }
 
 //***********************************************************************************************************
@@ -33,19 +32,21 @@ private class LabelLayout extends DefaultLayout {
             component.getTextDisplay().width = component.componentWidth - paddingLeft - paddingRight;
 
              // TODO: make not specific - need to check all backends first
-            #if (flixel)
+            #if (haxeui_flixel)
             component.getTextDisplay().wordWrap = true;
             component.getTextDisplay().tf.autoSize = false;
-            #elseif (openfl)
+            #elseif (haxeui_openfl)
             component.getTextDisplay().textField.autoSize = openfl.text.TextFieldAutoSize.NONE;
             component.getTextDisplay().multiline = true;
             component.getTextDisplay().wordWrap = true;
-            #elseif (pixijs)
+            #elseif (haxeui_pixijs)
             component.getTextDisplay().textField.style.wordWrapWidth = component.getTextDisplay().width;
             component.getTextDisplay().wordWrap = true;
             #else
             component.getTextDisplay().wordWrap = true;
             #end
+        } else {
+            component.getTextDisplay().width = component.getTextDisplay().textWidth;
         }
         
         if (component.autoHeight == true) {

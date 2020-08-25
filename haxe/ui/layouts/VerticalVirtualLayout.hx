@@ -10,7 +10,6 @@ class VerticalVirtualLayout extends VirtualLayout {
         super.repositionChildren();
 
         var comp:IVirtualContainer = cast(_component, IVirtualContainer);
-        var usableSize = this.usableSize;
         var itemHeight:Float = this.itemHeight;
         var contents:Component = this.contents;
         var verticalSpacing = contents.layout.verticalSpacing;
@@ -136,7 +135,8 @@ class VerticalVirtualLayout extends VirtualLayout {
             _firstIndex = 0;
         }
 
-        var rc:Rectangle = new Rectangle(0, 0, contents.width - (paddingRight + paddingLeft), contentsHeight - (paddingTop + paddingBottom));
+//        var rc:Rectangle = new Rectangle(0, 0, contents.width - (paddingRight + paddingLeft), contentsHeight - (paddingTop + paddingBottom));
+        var rc:Rectangle = new Rectangle(0, 0, contents.width, contentsHeight - (paddingTop + paddingBottom));
         contents.componentClipRect = rc;
 
         
@@ -180,7 +180,15 @@ class VerticalVirtualLayout extends VirtualLayout {
         var size:Size = super.calcAutoSize(exclusions);
         var comp:IVirtualContainer = cast(_component, IVirtualContainer);
         if (comp.itemCount > 0 && _component.autoHeight == true) {
-            size.height = (itemHeight * comp.itemCount) + paddingTop + paddingBottom;
+            var contents:Component = _component.findComponent("scrollview-contents", false);
+            var contentsPadding:Float = 0;
+            if (contents != null) {
+                var layout = contents.layout;
+                if (layout != null) {
+                    contentsPadding = layout.paddingTop + layout.paddingBottom;
+                }
+            }
+            size.height = (itemHeight * comp.itemCount) + paddingTop + paddingBottom + contentsPadding;
         }
 
         return size;

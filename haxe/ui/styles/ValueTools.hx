@@ -190,6 +190,8 @@ class ValueTools {
         switch (value) {
             case Value.VString(v) | Value.VConstant(v):
                 return v;
+            case Value.VBool(v):
+                return Std.string(v);
             case _:
                 return null;
         }
@@ -251,6 +253,8 @@ class ValueTools {
         
         switch (v) {
             case Value.VNumber(v):
+                return v;
+            case Value.VDimension(PX(v)):
                 return v;
             case Value.VColor(v):
                 return v;

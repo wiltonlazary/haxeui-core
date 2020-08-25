@@ -62,7 +62,7 @@ class XMLParser extends ComponentParser {
     }
 
     private static function parseImportNode(component:ComponentInfo, xml:Xml, resourceResolver:ResourceResolver) {
-        if (xml.get("source") != null) {
+        if (xml.get("source") != null || xml.get("resource") != null) {
             var source:String = xml.get("source");
             if (source == null) {
                 source = xml.get("resource");
@@ -127,9 +127,14 @@ class XMLParser extends ComponentParser {
         }
 
         if (styleText != null) {
-            var scope:String = "global";
+            var scope:String = xml.get("scope");
+            if (scope == null) {
+                scope = "global";
+            }
             if (scope == "global") {
-                component.findRootComponent().styles.push(styleText);
+                component.findRootComponent().styles.push(new ComponentStyleInfo(styleText, scope));
+            } else if (scope == "local" && component.parent != null) {
+                component.parent.styles.push(new ComponentStyleInfo(styleText, scope));
             }
         }
     }

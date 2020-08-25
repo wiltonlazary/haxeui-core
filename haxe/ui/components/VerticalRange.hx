@@ -54,7 +54,7 @@ class VerticalRangeLayout extends DefaultLayout {
             var d = (ucy / m);
             var startInPixels = (range.start * d) - (range.min * d);
             var endInPixels = (range.end * d) - (range.min * d);
-            var cy:Float = Math.abs(endInPixels - startInPixels);
+            var cy:Float = Math.fround(endInPixels - startInPixels);
 
             if (cy < 0) {
                 cy = 0;

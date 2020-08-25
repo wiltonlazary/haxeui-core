@@ -1,10 +1,9 @@
 package haxe.ui.core;
 
-import haxe.ui.backend.ComponentSurface;
 import haxe.ui.behaviours.Behaviours;
 import haxe.ui.behaviours.DataBehaviour;
 import haxe.ui.behaviours.DefaultBehaviour;
-import haxe.ui.events.UIEvent;
+import haxe.ui.behaviours.ValueBehaviour;
 import haxe.ui.layouts.Layout;
 import haxe.ui.styles.Style;
 import haxe.ui.util.Variant;
@@ -44,7 +43,7 @@ class ComponentContainer extends ComponentCommon implements IClonable<ComponentC
     **/
     @:dox(group = "Display tree related properties and methods")
     public var childComponents(get, null):Array<Component>;
-    private function get_childComponents():Array<Component> {
+    private inline function get_childComponents():Array<Component> {
         if (_children == null) {
             return [];
         }
@@ -87,6 +86,7 @@ class ComponentContainer extends ComponentCommon implements IClonable<ComponentC
     // General
     //***********************************************************************************************************
     @:clonable @:behaviour(DefaultBehaviour)                        public var text:String;
+    @:clonable @:behaviour(ComponentValueBehaviour)                 public var value:Dynamic;
 
     private var _id:String = null;
     /**
@@ -104,15 +104,6 @@ class ComponentContainer extends ComponentCommon implements IClonable<ComponentC
         }
         return _id;
     }
-    
-    public var value(get, set):Dynamic;
-    private function get_value():Dynamic {
-        return text;
-    }
-    private function set_value(value:Dynamic):Dynamic {
-        text = value;
-        return value;
-    }
 }
 
 //***********************************************************************************************************
@@ -125,14 +116,28 @@ class ComponentDisabledBehaviour extends DataBehaviour {
         return _component.hasClass(":disabled");
     }
     
-    public override function invalidateData() {
-        if (_value) {
-            _component.addClass(":disabled", true, true);
-            _component.dispatch(new UIEvent(UIEvent.DISABLED));
-        } else {
-            _component.removeClass(":disabled", true, true);
-            _component.dispatch(new UIEvent(UIEvent.ENABLED));
+    public override function validateData() {
+        _component.disableInteractivity(_value, true, true);
+    }
+}
+
+@:dox(hide) @:noCompletion
+@:access(haxe.ui.core.Component)
+class ComponentValueBehaviour extends ValueBehaviour {
+    public override function set(value:Variant) {
+        if (value == _value) {
+            return;
         }
-        _component.disableInteractivity(_value);
+
+        _value = value;
+        _component.text = value;
+    }
+
+    public override function get():Variant {
+        return _value;
+    }
+
+    public override function getDynamic():Dynamic {
+        return Variant.toDynamic(_value);
     }
 }

@@ -15,7 +15,7 @@ import haxe.ui.util.Variant;
 class CalendarView extends VBox {
     public static var MONTH_NAMES:Array<String> = ["January", "Febuary", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 	
-	public static var DATE_FORMAT:String = "%d/%m/%Y";
+	public static var DATE_FORMAT:String = "%Y-%m-%d";
     
     //***********************************************************************************************************
     // Public API
@@ -89,6 +89,9 @@ private class Events extends haxe.ui.events.Events {
     }
     
     private function onCalendarChange(event:CalendarEvent) {
+        var calendar:Calendar = _target.findComponent(Calendar);
+        var stepper:Stepper = _target.findComponent("current-year");
+        stepper.pos = calendar.selectedDate.getFullYear();
         _target.dispatch(new UIEvent(UIEvent.CHANGE));
     }
     
@@ -121,6 +124,7 @@ private class Builder extends CompositeBuilder {
 
         var hbox = new HBox();
         hbox.horizontalAlign = "center";
+        hbox.verticalAlign = "center";
         var label = new Label();
         label.id = "current-month";
         var now = Date.now();
@@ -129,9 +133,9 @@ private class Builder extends CompositeBuilder {
 
         var stepper = new Stepper();
         stepper.id = "current-year";
-		stepper.min = 1000;
-		stepper.max = 2999;
-		stepper.pos = 2019;
+		stepper.min = 0;
+		stepper.max = now.getFullYear() + 1000;
+		stepper.pos = now.getFullYear();
 		stepper.repeater = false;
         hbox.addComponent(stepper);
 

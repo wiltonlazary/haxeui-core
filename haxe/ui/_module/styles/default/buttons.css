@@ -6,7 +6,7 @@
     color: #222222;
     border: 1px solid #ABABAB;
     border-radius: 2px;
-    padding: 5px 5px;
+    padding: 5px 8px;
     cursor: pointer;
     width: auto;
     height: auto;
@@ -48,4 +48,8 @@
     background: #D4D4D4 #CCCCCC vertical;
     color: #909090;
     cursor: default;
+}
+
+.button .label {
+    pointer-events: none;
 }

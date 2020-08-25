@@ -35,6 +35,7 @@ class Screen extends ScreenImpl {
     }
 
     public override function addComponent(component:Component):Component {
+        @:privateAccess component._hasScreen = true;
         super.addComponent(component);
         #if !haxeui_android
         component.ready();
@@ -48,6 +49,7 @@ class Screen extends ScreenImpl {
     }
 
     public override function removeComponent(component:Component):Component {
+        @:privateAccess component._hasScreen = false;
         super.removeComponent(component);
         component.depth = -1;
         rootComponents.remove(component);
@@ -103,6 +105,20 @@ class Screen extends ScreenImpl {
             invalidateChildren(child);
         }
         c.invalidateComponent();
+    }
+
+    private function onThemeChanged() {
+        for (c in rootComponents) {
+            onThemeChangedChildren(c);
+        }
+    }
+    
+    @:access(haxe.ui.core.Component)
+    private function onThemeChangedChildren(c:Component) {
+        for (child in c.childComponents) {
+            onThemeChangedChildren(child);
+        }
+        c.onThemeChanged();
     }
     
     //***********************************************************************************************************

@@ -9,6 +9,7 @@ import haxe.ui.layouts.LayoutFactory;
  Base `Layout` that allows a container to specify an `icon`. How that icon resource is used depends on subclasses, like `TabView`
 **/
 @:dox(icon = "/icons/ui-panel.png")
+@:composite(DefaultLayout)
 class Box extends Component {
     //***********************************************************************************************************
     // Public API
@@ -21,11 +22,6 @@ class Box extends Component {
     **/
     @:clonable @:behaviour(DefaultBehaviour)                public var icon:String;
     
-    public function new() {
-        super();
-        layout = new DefaultLayout();
-    }
-
     private var _layoutName:String;
     @:clonable public var layoutName(get, set):String;
     private function get_layoutName():String {
@@ -39,5 +35,15 @@ class Box extends Component {
         _layoutName = value;
         layout = LayoutFactory.createFromName(layoutName);
         return value;
+    }
+    
+    //***********************************************************************************************************
+    // Internals
+    //***********************************************************************************************************
+    private override function createDefaults() {
+        super.createDefaults();
+        if (_defaultLayoutClass == null) {
+            _defaultLayoutClass = DefaultLayout;
+        }
     }
 }

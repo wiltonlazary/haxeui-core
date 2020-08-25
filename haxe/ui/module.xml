@@ -32,9 +32,7 @@
         <!--
         TODO: Under neko & haxe 3.3 importing 'Math' like this causes this error: Class<Math> has no field MathImpl
         -->
-        <!--
         <import class="Math" keep="true" static="true" />
-        -->    
         <import class="StringTools" keep="true" static="true" />
         <import class="haxe.ui.core.Screen" keep="true" static="true" />
         <import class="haxe.ui.containers.dialogs.MessageBox" keep="true" static="true" />
@@ -75,6 +73,8 @@
             <style resource="haxeui-core/styles/default/menus.css" />
             <style resource="haxeui-core/styles/default/accordion.css" />
             <style resource="haxeui-core/styles/default/propertygrids.css" />
+            <style resource="haxeui-core/styles/default/frames.css" />
+            <style resource="haxeui-core/styles/default/splitters.css" />
         </default>
         <native parent="default">
             <style resource="haxeui-core/styles/native/main.css" priority="-3" />

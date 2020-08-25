@@ -1,5 +1,6 @@
 package haxe.ui.core;
 
+import haxe.ui.behaviours.DefaultBehaviour;
 import haxe.ui.containers.ScrollView;
 import haxe.ui.events.FocusEvent;
 import haxe.ui.focus.FocusManager;
@@ -9,10 +10,11 @@ import haxe.ui.focus.IFocusable;
  A component that can be interacted with and gain input focus via either mouse or keyboard
 **/
 class InteractiveComponent extends Component implements IFocusable {
-    public function new() {
-        super();
-    }
-
+    //***********************************************************************************************************
+    // Public API
+    //***********************************************************************************************************
+    @:clonable @:behaviour(DefaultBehaviour, true)      public var allowInteraction:Bool;
+    
     private var _focus:Bool = false;
     /**
      Whether this component currently has focus

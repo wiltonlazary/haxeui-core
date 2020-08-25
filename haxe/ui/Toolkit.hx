@@ -50,6 +50,7 @@ class Toolkit {
         _theme = value;
         if (_initialized == true) {
             ThemeManager.instance.applyTheme(_theme);
+            Screen.instance.onThemeChanged();
             Screen.instance.invalidateAll();
         }
         return value;
@@ -185,7 +186,13 @@ class Toolkit {
         }
 
         var c:ComponentInfo = parser.parse(data, resourceResolver);
+        for (style in c.styles) {
+            if (style.scope == "global") {
+                styleSheet.parse(style.style);
+            }
+        }
         var component = buildComponentFromInfo(c, callback);
+        
 
         var fullScript = "";
         for (scriptString in c.scriptlets) {
@@ -300,7 +307,13 @@ class Toolkit {
     }
 
     public static var autoScale:Bool = true;
-    public static var autoScaleDPIThreshold:Int = 120;
+    public static var autoScaleDPIThreshold(get, null):Int;
+    private static function get_autoScaleDPIThreshold():Int {
+        if (Screen.instance.isRetina == true) {
+            return 192;
+        }
+        return 120;
+    }
 
     private static var _scaleX:Float = 0;
     public static var scaleX(get, set):Float;

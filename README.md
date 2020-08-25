@@ -1,8 +1,3 @@
-[![Build Status](https://travis-ci.org/haxeui/haxeui-core.svg?branch=master)](https://travis-ci.org/haxeui/haxeui-core)
-[![Code Climate](https://codeclimate.com/github/haxeui/haxeui-core/badges/gpa.svg)](https://codeclimate.com/github/haxeui/haxeui-core)
-[![Issue Count](https://codeclimate.com/github/haxeui/haxeui-core/badges/issue_count.svg)](https://codeclimate.com/github/haxeui/haxeui-core)
-[![Support this project on Patreon](https://raw.githubusercontent.com/haxeui/haxeui-core/master/pat_badge.png)](https://www.patreon.com/haxeui)
-
 # haxeui-core
 
 `haxeui-core` is a users universal entry point into the HaxeUI framework and allows for the same user interface code (either with markup or via `haxe` source code) to be used to build a user interface on various platforms using various HaxeUI `backends`. Below is a general overview of how `haxeui-core` and the various HaxeUI `backends` fit together. You can watch a presentation (given at WWX2016) about HaxeUI to get more of an understanding <a href="https://www.youtube.com/watch?v=L8J8qrR2VSg&feature=youtu.be">here</a>.
@@ -29,14 +24,14 @@ In general, using a HaxeUI `backend` is as simple as just including `haxeui-core
 
 Currently, HaxeUI supports the following `backends`. Please refer to each `backend` for specific instructions on how to set-up and initialise the host framework (if required).
 
-| Backend Library                   | Dependencies        | Platforms | Native Components | CI |
-| ------------- | -----------------------| ----------------- | :-----: | ------ |
-| <a href="https://github.com/haxeui/haxeui-openfl">haxeui-openfl</a> | `OpenFL` / `Lime` | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/mobile.png" title="Mobile"> <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/desktop.png" title="Desktop"> <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/browser.png" title="Browser"> | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/cross.png"> | [![Build Status](https://travis-ci.org/haxeui/haxeui-openfl.svg?branch=master)](https://travis-ci.org/haxeui/haxeui-openfl) |
-| <a href="https://github.com/haxeui/haxeui-kha">haxeui-kha</a> | `Kha` | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/mobile.png" title="Mobile"> <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/desktop.png" title="Desktop"> <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/browser.png" title="Browser"> | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/cross.png"> | [![Build Status](https://travis-ci.org/haxeui/haxeui-kha.svg?branch=master)](https://travis-ci.org/haxeui/haxeui-kha) |
-| <a href="https://github.com/haxeui/haxeui-html5">haxeui-html5</a> | _`none`_ | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/browser.png" title="Browser"> | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/tick.png"> | [![Build Status](https://travis-ci.org/haxeui/haxeui-html5.svg?branch=master)](https://travis-ci.org/haxeui/haxeui-html5) |
-| <a href="https://github.com/haxeui/haxeui-pixijs">haxeui-pixijs</a> | `PixiJS` | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/browser.png" title="Browser"> | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/cross.png"> | [![Build Status](https://travis-ci.org/haxeui/haxeui-pixijs.svg?branch=master)](https://travis-ci.org/haxeui/haxeui-pixijs) |
-| <a href="https://github.com/haxeui/haxeui-nme">haxeui-nme</a> | `NME` | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/mobile.png" title="Mobile"> <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/desktop.png" title="Desktop"> <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/browser.png" title="Browser"> | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/cross.png"> | [![Build Status](https://travis-ci.org/haxeui/haxeui-nme.svg?branch=master)](https://travis-ci.org/haxeui/haxeui-nme) |
-| <a href="https://github.com/haxeui/haxeui-hxwidgets">haxeui-hxwidgets</a> | `hxWidgets` / `wxWidgets` | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/desktop.png" title="Desktop"> | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/tick.png"> | [![Build Status](https://travis-ci.org/haxeui/haxeui-hxwidgets.svg?branch=master)](https://travis-ci.org/haxeui/haxeui-hxwidgets) |
+| Backend Library                   | Dependencies        | Platforms | Native Components |
+| ------------- | -----------------------| ----------------- | :-----: |
+| <a href="https://github.com/haxeui/haxeui-openfl">haxeui-openfl</a> | `OpenFL` / `Lime` | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/mobile.png" title="Mobile"> <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/desktop.png" title="Desktop"> <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/browser.png" title="Browser"> | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/cross.png"> |
+| <a href="https://github.com/haxeui/haxeui-kha">haxeui-kha</a> | `Kha` | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/mobile.png" title="Mobile"> <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/desktop.png" title="Desktop"> <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/browser.png" title="Browser"> | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/cross.png"> |
+| <a href="https://github.com/haxeui/haxeui-html5">haxeui-html5</a> | _`none`_ | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/browser.png" title="Browser"> | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/tick.png"> |
+| <a href="https://github.com/haxeui/haxeui-pixijs">haxeui-pixijs</a> | `PixiJS` | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/browser.png" title="Browser"> | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/cross.png"> |
+| <a href="https://github.com/haxeui/haxeui-nme">haxeui-nme</a> | `NME` | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/mobile.png" title="Mobile"> <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/desktop.png" title="Desktop"> <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/browser.png" title="Browser"> | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/cross.png"> |
+| <a href="https://github.com/haxeui/haxeui-hxwidgets">haxeui-hxwidgets</a> | `hxWidgets` / `wxWidgets` | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/desktop.png" title="Desktop"> | <img src="https://raw.githubusercontent.com/haxeui/haxeui-core/master/tick.png"> |
 
 
 ## Usage
@@ -87,11 +82,9 @@ var main = Toolkit.componentFromString('<vbox><button text="Button" /></vbox>', 
 Screen.instance.addComponent(main);
 ```
 
-## Additional resources
+## Addtional resources
+* <a href="http://haxeui.org/explorer/">component-explorer</a> - Browse HaxeUI components
+* <a href="http://haxeui.org/builder/">playground</a> - Write and test HaxeUI layouts in your browser
+* <a href="https://github.com/haxeui/component-examples">component-examples</a> - Various componet examples
 * <a href="http://haxeui.org/api/haxe/ui/">haxeui-api</a> - The HaxeUI api docs.
 * <a href="https://github.com/haxeui/haxeui-guides">haxeui-guides</a> - Set of guides to working with HaxeUI and backends.
-* <a href="https://github.com/haxeui/haxeui-demo">haxeui-demo</a> - Demo application written using HaxeUI.
-* <a href="https://github.com/haxeui/haxeui-templates">haxeui-templates</a> - Set of templates for IDEs to allow quick project creation.
-* <a href="https://github.com/haxeui/haxeui-bdd">haxeui-bdd</a> - A behaviour driven development engine written specifically for HaxeUI (uses <a href="https://github.com/haxeui/haxe-bdd">haxe-bdd</a> which is a gherkin/cucumber inspired project).
-* <a href="https://www.youtube.com/watch?v=L8J8qrR2VSg&feature=youtu.be">WWX2016 presentation</a> - A presentation given at WWX2016 regarding HaxeUI.
-

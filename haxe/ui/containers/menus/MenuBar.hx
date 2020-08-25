@@ -1,17 +1,20 @@
 package haxe.ui.containers.menus;
 
+import haxe.ui.behaviours.DefaultBehaviour;
 import haxe.ui.components.Button;
 import haxe.ui.containers.HBox;
 import haxe.ui.containers.menus.Menu.MenuEvent;
 import haxe.ui.containers.menus.Menu.MenuEvents;
 import haxe.ui.core.Component;
 import haxe.ui.core.CompositeBuilder;
-import haxe.ui.events.MouseEvent;
 import haxe.ui.core.Screen;
 import haxe.ui.events.Events;
+import haxe.ui.events.MouseEvent;
 
 @:composite(Events, Builder)
 class MenuBar extends HBox {
+    @:behaviour(DefaultBehaviour)           public var menuStyleNames:String;
+    
     /**
      Utility property to add a single `MenuEvent.MENU_SELECTED` event
     **/
@@ -65,6 +68,7 @@ private class Events extends haxe.ui.events.Events {
         if (target.selected == true) {
             showMenu(index);
         } else {
+            cast(_currentButton._internalEvents, ButtonEvents).lastMouseEvent = event;
             hideCurrentMenu();
         }
     }
@@ -100,21 +104,44 @@ private class Events extends haxe.ui.events.Events {
         target.selected = true;
         
         hideCurrentMenu();
-        var left = target.screenLeft;
-        var top =  target.screenTop + target.height;
+        var componentOffset = target.getComponentOffset();
+        var left = target.screenLeft + componentOffset.x;
+        var top =  target.screenTop + (target.actualComponentHeight - Toolkit.scaleY) + componentOffset.y;
+        menu.menuStyleNames = _menubar.menuStyleNames;
+        menu.addClasses([_menubar.menuStyleNames, "expanded"]);
+        if (menu.findComponent("menu-filler", false) == null) {
+            var filler = new Component();
+            filler.horizontalAlign = "right";
+            filler.includeInLayout = false;
+            filler.addClass("menu-filler");
+            filler.id = "menu-filler";
+            menu.addComponent(filler);
+        }
         menu.show();
         Screen.instance.addComponent(menu);
         menu.syncComponentValidation();
         
-        if (left + menu.width > Screen.instance.width) {
-            left = target.screenLeft - menu.width + target.width;
+        if (left + menu.actualComponentWidth > Screen.instance.width) {
+            left = target.screenLeft - menu.actualComponentWidth + target.actualComponentWidth;
         }
         
         menu.left = left;
-        menu.top = top - 1;
+        menu.top = top - Toolkit.scaleY;
         
         _currentButton = target;
         _currentMenu = menu;
+        
+        var cx = menu.width - _currentButton.width;
+        var filler:Component = menu.findComponent("menu-filler", false);
+        if (cx > 0 && filler != null) {
+            cx += 2;
+            filler.width = cx;
+            filler.left = menu.width - cx;
+            filler.hidden = false;
+        } else if (filler != null) {
+            filler.hidden = true;
+        }
+        
         Screen.instance.registerEvent(MouseEvent.MOUSE_DOWN, onScreenMouseDown);
         if (!_currentMenu.hasEvent(MenuEvent.MENU_SELECTED, onMenuSelected)) {
             _currentMenu.registerEvent(MenuEvent.MENU_SELECTED, onMenuSelected);
@@ -229,5 +256,24 @@ private class Builder extends CompositeBuilder {
     
     public override function getComponentAt(index:Int):Component {
         return null;
+    }
+    
+    public override function findComponent<T:Component>(criteria:String, type:Class<T>, recursive:Null<Bool>, searchType:String):Null<T> {
+        var match = super.findComponent(criteria, type, recursive, searchType);
+        if (match == null) {
+            for (menu in _menus) {
+                match = menu.findComponent(criteria, type, recursive, searchType);
+                if (menu.matchesSearch(criteria, type, searchType)) {
+                    return cast menu;
+                } else {
+                    match = menu.findComponent(criteria, type, recursive, searchType);
+                }
+                
+                if (match != null) {
+                    break;
+                }
+            }
+        }
+        return cast match;
     }
 }

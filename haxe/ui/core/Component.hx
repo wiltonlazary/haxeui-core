@@ -14,6 +14,7 @@ import haxe.ui.layouts.Layout;
 import haxe.ui.scripting.ScriptInterp;
 import haxe.ui.styles.Parser;
 import haxe.ui.styles.Style;
+import haxe.ui.styles.StyleSheet;
 import haxe.ui.styles.animation.Animation;
 import haxe.ui.styles.elements.AnimationKeyFrames;
 import haxe.ui.util.Color;
@@ -53,9 +54,6 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
             c = Type.getSuperClass(c);
         }        
 
-        //registerBehaviours();
-        registerComposite();
-        
         // we dont want to actually apply the classes, just find out if native is there or not
         //TODO - we could include the initialization in the validate method
         //var s = Toolkit.styleSheet.applyClasses(this, false);
@@ -73,6 +71,9 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
     //***********************************************************************************************************
     private var _defaultLayoutClass:Class<Layout> = null;
     private function create() {
+        if (native == false || native == null) {
+            registerComposite();
+        }
         createDefaults();
         handleCreate(native);
         destroyChildren();
@@ -314,6 +315,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
             child.ready();
         }
 
+        assignPositionClasses();
         invalidateComponentLayout();
         if (disabled) {
             child.disabled = true;
@@ -358,6 +360,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
             child.ready();
         }
 
+        assignPositionClasses();
         invalidateComponentLayout();
         if (disabled) {
             child.disabled = true;
@@ -402,6 +405,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
             }
         }
         handleRemoveComponent(child, dispose);
+        assignPositionClasses(invalidate);
         if (_children != null && invalidate == true) {
             invalidateComponentLayout();
         }
@@ -449,6 +453,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
                 child.parentComponent = null;
                 child.depth = -1;
             }
+            assignPositionClasses(invalidate);
             if (invalidate == true) {
                 invalidateComponentLayout();
             }
@@ -468,6 +473,19 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
     }
 
     private function onComponentRemoved(child:Component) {
+    }
+    
+    private function assignPositionClasses(invalidate:Bool = true) {
+        for (i in 0...childComponents.length) {
+            var c = childComponents[i];
+            if (i == 0) {
+                c.swapClass("first", "last", invalidate);
+            } else if (childComponents.length > 1 && i == childComponents.length - 1) {
+                c.swapClass("last", "first", invalidate);
+            } else {
+                c.removeClasses(["first", "last"], invalidate);
+            }
+        }
     }
     
     private function destroyComponent() {
@@ -754,6 +772,46 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         }
     }
 
+    public function fadeIn(onEnd:Void->Void = null, show:Bool = true) {
+        if (onEnd != null || show == true) {
+            var prevStart = onAnimationStart;
+            var prevEnd = onAnimationEnd;
+            if (show == true) {
+                prevStart = onAnimationStart;
+                onAnimationStart = function(e) {
+                    this.show();
+                    onAnimationStart = prevStart;
+                }
+            }
+            
+            onAnimationEnd = function(e) {
+                if (onEnd != null) {
+                    onEnd();
+                }
+                removeClass("fade-in");
+                onAnimationEnd = prevEnd;
+            }
+        }
+        swapClass("fade-in", "fade-out");
+    }
+    
+    public function fadeOut(onEnd:Void->Void = null, hide:Bool = true) {
+        if (onEnd != null || hide == true) {
+            var prevEnd = onAnimationEnd;
+            onAnimationEnd = function(e) {
+                if (hide == true) {
+                    this.hide();
+                }
+                if (onEnd != null) {
+                    onEnd();
+                }
+                onAnimationEnd = prevEnd;
+                removeClass("fade-out");
+            }
+        }
+        swapClass("fade-out", "fade-in");
+    }
+    
     private var _hidden:Bool = false;
     /**
      Whether this component is hidden or not
@@ -788,7 +846,12 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
      A custom style object that will appled to this component after any css rules have been matched and applied
     **/
     @:dox(group = "Style related properties and methods")
-    public var customStyle:Style = new Style();
+    public var customStyle(default, set):Style = {};
+    function set_customStyle(v:Style) {
+        if(v != customStyle) 
+            invalidateComponentStyle();
+        return customStyle = v;
+    }
     @:dox(group = "Style related properties and methods")
     private var classes:Array<String> = [];
 
@@ -812,6 +875,32 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
     }
 
     /**
+     Adds a css style names to this component
+    **/
+    @:dox(group = "Style related properties and methods")
+    public function addClasses(names:Array<String>, invalidate:Bool = true, recursive:Bool = false) {
+        var needsInvalidate = false;
+        for (name in names) {
+            if (classes.indexOf(name) == -1) {
+                classes.push(name);
+                if (invalidate == true) {
+                    needsInvalidate = true;
+                }
+            }
+        }
+		
+        if (needsInvalidate == true) {
+            invalidateComponentStyle();
+        }
+        
+		if (recursive == true) {
+			for (child in childComponents) {
+				child.addClasses(names, invalidate, recursive);
+			}
+		}
+    }
+
+    /**
      Removes a css style name from this component
     **/
     @:dox(group = "Style related properties and methods")
@@ -830,6 +919,32 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
 		}
     }
 
+    /**
+     Removes a css style names from this component
+    **/
+    @:dox(group = "Style related properties and methods")
+    public function removeClasses(names:Array<String>, invalidate:Bool = true, recursive:Bool = false) {
+        var needsInvalidate = false;
+        for (name in names) {
+            if (classes.indexOf(name) != -1) {
+                classes.remove(name);
+                if (invalidate == true) {
+                    needsInvalidate = true;
+                }
+            }
+        }
+
+        if (needsInvalidate == true) {
+            invalidateComponentStyle();
+        }
+        
+		if (recursive == true) {
+			for (child in childComponents) {
+				child.removeClasses(names, invalidate, recursive);
+			}
+		}
+    }
+    
     /**
      Whether or not this component has a css class associated with it
     **/
@@ -913,6 +1028,45 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         return value;
     }
 
+    // were going to cache the ref (which may be null) so we dont have to 
+    // perform a parent based lookup each for a performance tweak
+    private var _useCachedStyleSheetRef:Bool = false;
+    private var _cachedStyleSheetRef:StyleSheet = null;
+    private var _styleSheet:StyleSheet = null;
+    public var styleSheet(get, set):StyleSheet;
+    private function get_styleSheet():StyleSheet {
+        if (_useCachedStyleSheetRef == true) {
+            return _cachedStyleSheetRef;
+        }
+        
+        var s = null;
+        var ref = this;
+        while (ref != null) {
+            if (ref._styleSheet != null) {
+                s = ref._styleSheet;
+                break;
+            }
+            ref = ref.parentComponent;
+        }
+        
+        _useCachedStyleSheetRef = true;
+        _cachedStyleSheetRef = s;
+        
+        return s;
+    }
+    private function set_styleSheet(value:StyleSheet):StyleSheet {
+        _styleSheet = value;
+        resetCachedStyleSheetRef();
+        return value;
+    }
+    private function resetCachedStyleSheetRef() {
+        _cachedStyleSheetRef = null;
+        _useCachedStyleSheetRef = false;
+        for (c in childComponents) {
+            c.resetCachedStyleSheetRef();
+        }
+    }
+    
     //***********************************************************************************************************
     // Layout related
     //***********************************************************************************************************
@@ -959,9 +1113,6 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         return value;
     }
 
-    /*
-    private var _layoutLocked:Bool = false;
-    */
     public function lockLayout(recursive:Bool = false) {
         if (_layoutLocked == true) {
             return;
@@ -1055,7 +1206,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
     //***********************************************************************************************************
     // Styles
     //***********************************************************************************************************
-    #if !flixel
+    #if !(haxeui_flixel || haxeui_heaps)
     @:style                 public var color:Null<Color>;
     #end
     @:style                 public var backgroundColor:Null<Color>;
@@ -1273,6 +1424,24 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
     // Invalidation
     //***********************************************************************************************************
 
+    private function onThemeChanged() {
+        _initialSizeApplied = false;
+        if (_style != null) {
+            if (_style.initialWidth != null) {
+                width = 0;
+            }
+            if (_style.initialPercentWidth != null) {
+                percentWidth = null;
+            }
+            if (_style.initialHeight != null) {
+                height = 0;
+            }
+            if (_style.initialPercentHeight != null) {
+                percentHeight = null;
+            }
+        }
+    }
+    
     private override function initializeComponent() {
         if (_isInitialized == true) {
             return;
@@ -1355,11 +1524,24 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
 
     private override function validateComponentStyle() {
         var s:Style = Toolkit.styleSheet.buildStyleFor(this);
+        if (this.styleSheet != null) {
+            var localStyle = this.styleSheet.buildStyleFor(this);
+            s.apply(localStyle);
+        }
         s.apply(customStyle);
 
         if (_style == null || _style.equalTo(s) == false) { // lets not update if nothing has changed
+            
+            var marginsChanged = false;
+            if (parentComponent != null && _style != null) {
+                marginsChanged = _style.marginLeft != s.marginLeft || _style.marginRight != s.marginRight ||  _style.marginTop != s.marginTop ||  _style.marginBottom != s.marginBottom;
+            }
+            
             _style = s;
             applyStyle(s);
+            if (marginsChanged == true) {
+                parentComponent.invalidateComponentLayout();
+            }
         }
     }
 
@@ -1468,6 +1650,38 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
             componentAnimation = null;
         }
 
+        if (style.pointerEvents != null && style.pointerEvents != "none") {
+            if (hasEvent(MouseEvent.MOUSE_OVER, onPointerEventsMouseOver) == false) {
+                customStyle.cursor = "pointer";
+                registerEvent(MouseEvent.MOUSE_OVER, onPointerEventsMouseOver);
+            }
+            if (hasEvent(MouseEvent.MOUSE_OUT, onPointerEventsMouseOut) == false) {
+                registerEvent(MouseEvent.MOUSE_OUT, onPointerEventsMouseOut);
+            }
+            if (hasEvent(MouseEvent.MOUSE_DOWN, onPointerEventsMouseDown) == false) {
+                registerEvent(MouseEvent.MOUSE_DOWN, onPointerEventsMouseDown);
+            }
+            if (hasEvent(MouseEvent.MOUSE_UP, onPointerEventsMouseUp) == false) {
+                registerEvent(MouseEvent.MOUSE_UP, onPointerEventsMouseUp);
+            }
+            handleFrameworkProperty("allowMouseInteraction", true);
+        } else if (style.pointerEvents != null) {
+            if (hasEvent(MouseEvent.MOUSE_OVER, onPointerEventsMouseOver) == true) {
+                customStyle.cursor = null;
+                unregisterEvent(MouseEvent.MOUSE_OVER, onPointerEventsMouseOver);
+            }
+            if (hasEvent(MouseEvent.MOUSE_OUT, onPointerEventsMouseOut) == true) {
+                unregisterEvent(MouseEvent.MOUSE_OUT, onPointerEventsMouseOut);
+            }
+            if (hasEvent(MouseEvent.MOUSE_DOWN, onPointerEventsMouseDown) == true) {
+                unregisterEvent(MouseEvent.MOUSE_DOWN, onPointerEventsMouseDown);
+            }
+            if (hasEvent(MouseEvent.MOUSE_UP, onPointerEventsMouseUp) == true) {
+                unregisterEvent(MouseEvent.MOUSE_UP, onPointerEventsMouseUp);
+            }
+            handleFrameworkProperty("allowMouseInteraction", false);
+        }
+        
         /*
         if (style.clip != null) {
             clipContent = style.clip;
@@ -1495,6 +1709,22 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         }
     }
 
+    private function onPointerEventsMouseOver(e:MouseEvent) {
+        addClass(":hover", true, true);
+    }
+    
+    private function onPointerEventsMouseOut(e:MouseEvent) {
+        removeClass(":hover", true, true);
+    }
+    
+    private function onPointerEventsMouseDown(e:MouseEvent) {
+        addClass(":down", true, true);
+    }
+    
+    private function onPointerEventsMouseUp(e:MouseEvent) {
+        removeClass(":down", true, true);
+    }
+    
     //***********************************************************************************************************
     // Animation
     //***********************************************************************************************************
@@ -1534,6 +1764,12 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
             for (k in _scriptEvents.keys()) {
                 c.addScriptEvent(k, _scriptEvents.get(k));
             }
+        }
+        if (customStyle != null) {
+            if (c.customStyle == null) {
+                c.customStyle = {};
+            }
+            c.customStyle.apply(customStyle);
         }
     }
     
