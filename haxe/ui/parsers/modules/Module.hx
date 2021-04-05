@@ -13,6 +13,7 @@ class Module {
     public var plugins(default, default):Array<ModulePluginEntry>;
     public var properties(default, default):Array<ModulePropertyEntry>;
     public var preload(default, default):Array<ModulePreloadEntry>;
+    public var locales(default, default):Array<ModuleLocaleEntry>;
 
     public function new() {
         resourceEntries = [];
@@ -23,6 +24,7 @@ class Module {
         plugins = [];
         properties = [];
         preload = [];
+        locales = [];
     }
 
     public function validate() {
@@ -63,16 +65,27 @@ class ModuleThemeEntry {
     public var name(default, default):String;
     public var parent(default, default):String;
     public var styles(default, default):Array<ModuleThemeStyleEntry>;
+    public var images(default, default):Array<ModuleThemeImageEntry>;
 
     public function new() {
         styles = [];
+        images = [];
     }
 }
 
 class ModuleThemeStyleEntry {
     public var resource:String;
     public var priority:Float = 0;
-    
+
+    public function new() {
+    }
+}
+
+class ModuleThemeImageEntry {
+    public var id:String;
+    public var resource:String;
+    public var priority:Float = 0;
+
     public function new() {
     }
 }
@@ -98,6 +111,21 @@ class ModulePropertyEntry {
 class ModulePreloadEntry {
     public var type(default, default):String;
     public var id(default, default):String;
+
+    public function new() {
+    }
+}
+
+class ModuleLocaleEntry {
+    public var id(default, default):String;
+    public var resources(default, default):Array<String> = [];
+    
+    public function new() {
+    }
+}
+
+class ModuleLocaleResourceEntry {
+    public var path(default, default):String;
     
     public function new() {
     }

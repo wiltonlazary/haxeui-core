@@ -13,7 +13,7 @@ class Label extends Component {
     // Styles
     //***********************************************************************************************************
     @:style(layout)                             public var textAlign:Null<String>;
-    
+
     //***********************************************************************************************************
     // Public API
     //***********************************************************************************************************
@@ -48,7 +48,7 @@ private class LabelLayout extends DefaultLayout {
         } else {
             component.getTextDisplay().width = component.getTextDisplay().textWidth;
         }
-        
+
         if (component.autoHeight == true) {
             component.getTextDisplay().height = component.getTextDisplay().textHeight;
         } else {
@@ -96,6 +96,9 @@ private class TextBehaviour extends DataBehaviour {
 @:dox(hide) @:noCompletion
 private class HtmlTextBehaviour extends DataBehaviour {
     public override function validateData() {
+        if (_component.getTextDisplay().textStyle != _component.style) {
+            _component.invalidateComponentStyle(true);
+        }
         _component.getTextDisplay().htmlText = '${_value}';
     }
 }
@@ -106,15 +109,24 @@ private class HtmlTextBehaviour extends DataBehaviour {
 @:dox(hide) @:noCompletion
 private class Builder extends CompositeBuilder {
     private var _label:Label;
-    
+
     public function new(label:Label) {
         super(label);
         _label = label;
     }
-    
+
     public override function applyStyle(style:Style) {
         if (_label.hasTextDisplay() == true) {
             _label.getTextDisplay().textStyle = style;
+
+            if ((style.contentType == "auto" || style.contentType == "html") && _label.getTextDisplay().supportsHtml && isHtml(Std.string(_component.text))) {
+                _label.htmlText = _label.text;
+            }
         }
+
+    }
+
+    public static inline function isHtml(v:String):Bool {
+        return v == null ? false : v.indexOf("<font ") != -1;
     }
 }

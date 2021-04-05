@@ -1,5 +1,6 @@
 package haxe.ui.components;
 
+import haxe.ui.Toolkit;
 import haxe.ui.behaviours.Behaviour;
 import haxe.ui.core.Component;
 import haxe.ui.layouts.DefaultLayout;
@@ -18,19 +19,22 @@ class VerticalRange extends Range {
 // Behaviours
 //***********************************************************************************************************
 @:dox(hide) @:noCompletion
+@:access(haxe.ui.core.Component)
 class VerticalRangePosFromCoord extends Behaviour {
     public override function call(pos:Any = null):Variant {
         var range = cast(_component, Range);
         var p = cast(pos, Point);
+        p.y -= _component.getComponentOffset().y;
+
         var ypos = p.y - range.layout.paddingTop;
-        var ucy = range.layout.usableHeight;
+        var ucy = range.layout.usableHeight * Toolkit.scaleY;
         if (ypos >= ucy) {
             ypos = ucy;
         }
-        
+
         var m:Float = range.max - range.min;
         var d = (ucy / m);
-        var v:Float = ypos;// - (range.start * d);
+        var v:Float = ypos; // - (range.start * d);
         var p:Float = v / d;
 
         return (range.max - p);
@@ -44,12 +48,12 @@ class VerticalRangePosFromCoord extends Behaviour {
 class VerticalRangeLayout extends DefaultLayout {
     public override function resizeChildren() {
         super.resizeChildren();
-        
+
         var range:Range = cast(component, Range);
         var value:Component = findComponent('${range.cssName}-value');
         if (value != null) {
             var ucy:Float = usableHeight;
-            
+
             var m:Float = range.max - range.min;
             var d = (ucy / m);
             var startInPixels = (range.start * d) - (range.min * d);
@@ -73,9 +77,11 @@ class VerticalRangeLayout extends DefaultLayout {
     }
 
     public override function repositionChildren() {
+        super.repositionChildren();
+
         var range:Range = cast(component, Range);
         var value:Component = findComponent('${range.cssName}-value');
-        
+
         var ucy:Float = usableHeight;
         var m:Float = range.max - range.min;
         var d = (ucy / m);
@@ -83,5 +89,5 @@ class VerticalRangeLayout extends DefaultLayout {
         var startInPixels = (ucy - value.height) - ((range.start * d) - (range.min * d));
         value.left = paddingLeft;
         value.top = paddingTop + startInPixels;
-    }    
+    }
 }

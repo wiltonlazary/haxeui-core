@@ -1,4 +1,5 @@
 package haxe.ui.util;
+
 import haxe.ui.scripting.ScriptInterp;
 
 class GenericConfig {
@@ -6,7 +7,7 @@ class GenericConfig {
     public var sections:Map<String, Array<GenericConfig>>;
 
     public static var cache:Map<String, String> = new Map<String, String>();
-    
+
     public function new() {
         values = new Map<String, String>();
         sections = new Map<String, Array<GenericConfig>>();
@@ -58,9 +59,12 @@ class GenericConfig {
 
     public function query(q:String, defaultValue:String = null, conditionRef:Dynamic):String {
         if (cache.exists(q)) {
+            if (defaultValue != null && cache.get(q) == null) {
+                return defaultValue;
+            }
             return cache.get(q);
         }
-        
+
         var regexp:EReg = new EReg("\\.(?![^\\[]*\\])", "g");
         var finalArray:Array<String> = regexp.split(q);
         var ref:GenericConfig = this;
@@ -104,12 +108,14 @@ class GenericConfig {
                 }
             }
         }
-        
+
         if (value == null) {
             value = defaultValue;
         }
 
-        //cache.set(q, value);
+        if (value != null) {
+            cache.set(q, value);
+        }
         return value;
     }
 
@@ -152,7 +158,7 @@ class GenericConfig {
                 }
             }
         }
-        
+
         return ref.values;
     }
 }

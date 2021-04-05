@@ -74,7 +74,7 @@ class ItemRenderer extends Box {
         if (_data != null && (_fieldList == null || _fieldList.length == 0)) {
             switch (Type.typeof(_data)) {
                 case TObject | TClass(_):
-                    if (Std.is(_data, String) == false) {
+                    if ((_data is String) == false) {
                         var fieldList:Array<String> = Reflect.fields(_data);
                         if (Type.getClass(_data) != null) {
                             var instanceFields = Type.getInstanceFields(Type.getClass(_data));
@@ -88,16 +88,16 @@ class ItemRenderer extends Box {
                     } else {
                         _fieldList = ["text"];
                     }
-                case _:    
+                case _:
                     _fieldList = ["text"];
             }
         }
-        
+
         updateValues(_data, _fieldList);
-        
+
         var components = findComponents(InteractiveComponent);
         for (c in components) {
-            if (Std.is(c, Button)) {
+            if ((c is Button)) {
                 if (c.hasEvent(MouseEvent.CLICK, onItemClick) == false) {
                     c.registerEvent(MouseEvent.CLICK, onItemClick);
                 }
@@ -108,8 +108,11 @@ class ItemRenderer extends Box {
             }
         }
     }
-    
+
     private function onItemChange(event:UIEvent) {
+        if (itemIndex < 0) {
+            return; 
+        }
         var v = event.target.value;
         if (_data != null) {
             Reflect.setProperty(_data, event.target.id, v);
@@ -122,8 +125,11 @@ class ItemRenderer extends Box {
         e.data = _data;
         dispatch(e);
     }
-    
+
     private function onItemClick(event:UIEvent) {
+        if (itemIndex < 0) {
+            return; 
+        }
         var e = new ItemEvent(ItemEvent.COMPONENT_EVENT);
         e.bubble = true;
         e.source = event.target;
@@ -132,16 +138,16 @@ class ItemRenderer extends Box {
         e.data = _data;
         dispatch(e);
     }
-    
+
     private function updateValues(value:Dynamic, fieldList:Array<String> = null) {
         if (fieldList == null) {
             fieldList = Reflect.fields(value);
         }
-        
+
         var valueObject = null;
         switch (Type.typeof(value)) {
             case TObject | TClass(_):
-                if (Std.is(value, String) == false) {
+                if ((value is String) == false) {
                     valueObject = value;
                 } else {
                     valueObject = {text: value};
@@ -159,17 +165,23 @@ class ItemRenderer extends Box {
                 if (c != null && v != null) {
                     var propValue:Dynamic = TypeConverter.convert(v);
                     c.value = propValue;
-                    
-                    if (c.hasEvent(UIEvent.CHANGE, onItemChange) == false) {
-                        c.registerEvent(UIEvent.CHANGE, onItemChange);
+
+                    if ((c is InteractiveComponent)) {
+                        if (c.hasEvent(UIEvent.CHANGE, onItemChange) == false) {
+                            c.registerEvent(UIEvent.CHANGE, onItemChange);
+                        }
+                        if (c.hasEvent(MouseEvent.CLICK, onItemClick) == false) {
+                            c.registerEvent(MouseEvent.CLICK, onItemClick);
+                        }
                     }
-                    if (c.hasEvent(MouseEvent.CLICK, onItemClick) == false) {
-                        c.registerEvent(MouseEvent.CLICK, onItemClick);
-                    }
-                    
+
                     c.show();
                 } else if (c != null) {
                     c.hide();
+                } else if (f != "id") {
+                    try {
+                        Reflect.setProperty(this, f, v);
+                    } catch (e:Dynamic) {}
                 }
             }
         }

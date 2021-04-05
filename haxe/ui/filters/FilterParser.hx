@@ -9,6 +9,10 @@ class FilterParser {
             filter = parseDropShadow(filterDetails);
         } else if (filterDetails[0] == "blur") {
             filter = parseBlur(filterDetails);
+        } else if (filterDetails[0] == "outline") {
+            filter = parseOutline(filterDetails);
+        } else if (filterDetails[0] == "grayscale") {
+            filter = parseGrayscale(filterDetails);
         }
         return filter;
     }
@@ -57,6 +61,25 @@ class FilterParser {
         return blur;
     }
 
+    public static function parseOutline(filterDetails:Array<Dynamic>):Outline {
+        if (filterDetails == null || filterDetails.length == 0) {
+            return null;
+        }
+
+        var copy:Array<Dynamic> = filterDetails.copy();
+        buildDefaults();
+
+        var filterName = copy[0];
+        copy.remove(filterName);
+
+        copy = copyFilterDefaults(filterName, copy);
+
+        var outline:Outline = new Outline();
+        outline.color = copy[0];
+        outline.size = copy[1];
+        return outline;
+    }
+
     private static function copyFilterDefaults(filterName:String, params:Array<Dynamic>):Array<Dynamic> {
         var copy:Array<Dynamic> = [];
 
@@ -77,6 +100,24 @@ class FilterParser {
         return copy;
     }
 
+    public static function parseGrayscale(filterDetails:Array<Dynamic>):Grayscale {
+        if (filterDetails == null || filterDetails.length == 0) {
+            return null;
+        }
+
+        var copy:Array<Dynamic> = filterDetails.copy();
+        buildDefaults();
+
+        var filterName = copy[0];
+        copy.remove(filterName);
+
+        copy = copyFilterDefaults(filterName, copy);
+
+        var grayscale:Grayscale = new Grayscale();
+        grayscale.amount = copy[0];
+        return grayscale;
+    }
+    
     private static function buildDefaults() {
         if (filterParamDefaults != null) {
             return;
@@ -88,5 +129,12 @@ class FilterParser {
 
         filterParamDefaults["blur"] = [];
         filterParamDefaults["blur"] = filterParamDefaults["blur"].concat([1]);
+
+        filterParamDefaults["outline"] = [];
+        filterParamDefaults["outline"] = filterParamDefaults["outline"].concat([0, 1]);
+        
+        filterParamDefaults["grayscale"] = [];
+        filterParamDefaults["grayscale"] = filterParamDefaults["grayscale"].concat([100]);
+
     }
 }

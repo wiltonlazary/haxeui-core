@@ -1,27 +1,29 @@
 package haxe.ui.macros.helpers;
 
 import haxe.macro.Expr;
-import haxe.macro.Expr.ComplexType;
 import haxe.macro.ExprTools;
 import haxe.macro.Type.ClassType;
 import haxe.macro.Type.Ref;
 import haxe.macro.TypeTools;
 import haxe.macro.Expr.ComplexType;
 
-
 class ClassBuilder {
     public var fields:Array<Field>;
     public var type:haxe.macro.Type;
     public var classType:ClassType;
     public var pos:Position;
-    
+
     public function new(fields:Array<Field> = null, type:haxe.macro.Type = null, pos:Position = null) {
         this.fields = fields;
         this.type = type;
         if (type != null) {
             try {
+                #if macro
                 this.classType = TypeTools.getClass(type);
-            } catch (e:Dynamic) { }
+                #else
+                this.classType = null;
+                #end
+            } catch (e:Dynamic) {}
         }
         this.pos = pos;
     }
@@ -41,7 +43,7 @@ class ClassBuilder {
         }
         return r;
     }
-    
+
     public var path(get, null):ComplexType;
     private function get_path():ComplexType {
         var p = fullPath.split(".");
@@ -55,27 +57,31 @@ class ClassBuilder {
         var className = p.pop();
         return {pack: p, name: className};
     }
-    
+
     public var fullPath(get, null):String;
     private function get_fullPath():String {
+        #if macro
         return TypeTools.toString(type);
+        #else
+        return null;
+        #end
     }
-    
+
     public var name(get, null):String;
     private function get_name():String {
         return fullPath.split(".").pop();
     }
-    
+
     public var isPrivate(get, null):Bool;
     private function get_isPrivate():Bool {
-        return switch (type) { 
-            case TInst(c, _): 
-                c.get().isPrivate || c.get().meta.has(":noCompletion"); 
+        return switch (type) {
+            case TInst(c, _):
+                c.get().isPrivate || c.get().meta.has(":noCompletion");
             case TType(tt, _):
-                return tt.get().meta.has(":noCompletion"); 
-            case _: 
-                false; 
-        } 
+                return tt.get().meta.has(":noCompletion");
+            case _:
+                false;
+        }
     }
 
     public function findField(name:String):Field {
@@ -88,7 +94,7 @@ class ClassBuilder {
         }
         return r;
     }
-    
+
     public function hasField(name:String, recursive:Bool = false):Bool {
         if (recursive == true) {
             #if ((haxe_ver < 4) || haxeui_heaps)
@@ -103,7 +109,7 @@ class ClassBuilder {
         }
         return (findField(name) != null);
     }
-    
+
     #if ((haxe_ver < 4) || haxeui_heaps)
     // TODO: this is a really ugly haxe3 hack / workaround - once haxe4 stabalises this *MUST* be removed - its likely brittle and ill conceived!
     private function haxe3FindField(c:ClassType, name:String) {
@@ -127,7 +133,7 @@ class ClassBuilder {
     }
     #end
 
-    public function getFieldsWithMeta(meta:String) {
+    public function getFieldsWithMeta(meta:String):Array<FieldBuilder> {
         var fs = [];
         for (f in fields) {
             for (m in f.meta) {
@@ -138,7 +144,7 @@ class ClassBuilder {
         }
         return fs;
     }
-    
+
     public function getFieldMetaValue(meta:String, paramIndex:Int = 0):String {
         var v = null;
         for (f in fields) {
@@ -150,45 +156,16 @@ class ClassBuilder {
         }
         return v;
     }
-    
+
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Interfaces
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    
+
     public function hasInterface(interfaceRequired:String):Bool {
         var has:Bool = false;
         switch (type) {
-                case TInst(t, _): {
-                    while (t != null) {
-                        for (i in t.get().interfaces) {
-                            var interfaceName:String = i.t.toString();
-                            if (interfaceName == interfaceRequired) {
-                                has = true;
-                                break;
-                            }
-                        }
-
-                        if (has == false) {
-                            if (t.get().superClass != null) {
-                                t = t.get().superClass.t;
-                            } else {
-                                t = null;
-                            }
-                        } else {
-                            break;
-                        }
-                    }
-                }
-                case _:
-        }
-
-        return has;
-    }
-    
-    public function hasDirectInterface(interfaceRequired:String):Bool {
-        var has:Bool = false;
-        switch (type) {
-                case TInst(t, _): {
+            case TInst(t, _):
+                while (t != null) {
                     for (i in t.get().interfaces) {
                         var interfaceName:String = i.t.toString();
                         if (interfaceName == interfaceRequired) {
@@ -196,59 +173,84 @@ class ClassBuilder {
                             break;
                         }
                     }
-                }
-                case _:
-        }
-        
-        return has;
-    }
-    
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Hierarchy
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    
-    public function hasSuperClass(classRequired:String):Bool {
-        var has:Bool = false;
-        switch (type) {
-                case TInst(t, _): {
-                    if (t.toString() == classRequired) {
-                        has = true;
-                    } else {
-                        while (t != null) {
-                            if (t.get().superClass != null) {
-                                t = t.get().superClass.t;
-                                if (t.toString() == classRequired) {
-                                    has = true;
-                                    break;
-                                }
-                            } else {
-                                t = null;
-                            }
+
+                    if (has == false) {
+                        if (t.get().superClass != null) {
+                            t = t.get().superClass.t;
+                        } else {
+                            t = null;
                         }
+                    } else {
+                        break;
                     }
                 }
-                case _:
+            case _:
         }
 
         return has;
     }
-    
+
+    public function hasDirectInterface(interfaceRequired:String):Bool {
+        var has:Bool = false;
+        switch (type) {
+            case TInst(t, _):
+                for (i in t.get().interfaces) {
+                    var interfaceName:String = i.t.toString();
+                    if (interfaceName == interfaceRequired) {
+                        has = true;
+                        break;
+                    }
+                }
+            case _:
+        }
+
+        return has;
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Hierarchy
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public function hasSuperClass(classRequired:String):Bool {
+        var has:Bool = false;
+        switch (type) {
+            case TInst(t, _):
+                if (t.toString() == classRequired) {
+                    has = true;
+                } else {
+                    while (t != null) {
+                        if (t.get().superClass != null) {
+                            t = t.get().superClass.t;
+                            if (t.toString() == classRequired) {
+                                has = true;
+                                break;
+                            }
+                        } else {
+                            t = null;
+                        }
+                    }
+                }
+            case _:
+        }
+
+        return has;
+    }
+
     public var superClass(get, null):Null<{ t:Ref<ClassType>, params:Array<haxe.macro.Type> }>;
     private function get_superClass():Null<{ t:Ref<ClassType>, params:Array<haxe.macro.Type> }> {
         var superClass:Null<{ t:Ref<ClassType>, params:Array<haxe.macro.Type> }> = null;
         switch (type) {
-                case TInst(t, _): {
-                    superClass = t.get().superClass;
-                }
-                case _:
+            case TInst(t, _):
+                superClass = t.get().superClass;
+            case _:
         }
         return superClass;
     }
-    
+
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Meta
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    
+
     public function hasClassMeta(items:Array<String>):Bool {
         var r = false;
         for (item in items) {
@@ -259,22 +261,22 @@ class ClassBuilder {
         }
         return r;
     }
-    
-    public function getClassMeta(name:String, index:Int = 0) {
+
+    public function getClassMeta(name:String, index:Int = 0):MetadataEntry {
         if (hasClassMeta([name]) == false) {
             throw 'Meta not found: ${name}';
         }
-        
+
         var meta = null;
         if (classType.meta.has(name)) {
             meta = classType.meta.extract(name);
         } else if (classType.meta.has(':${name}')) {
             meta = classType.meta.extract(':${name}');
         }
-        
+
         return meta[index];
     }
-    
+
     public function getClassMetaValues(name:String, index:Int = 0):Array<Dynamic> {
         var values = [];
 
@@ -282,17 +284,17 @@ class ClassBuilder {
         for (p in meta.params) {
             values.push(metaParam(p));
         }
-        
+
         return values;
     }
-    
+
     public function getClassMetaValue(name:String, index:Int = 0, paramIndex:Int = 0):Dynamic {
         var meta = getClassMeta(name);
         var param = meta.params[paramIndex];
         var v = metaParam(param);
         return v;
     }
-    
+
     private function metaParam(param:Expr):Dynamic {
         var v = null;
         switch (param.expr) {
@@ -305,7 +307,7 @@ class ClassBuilder {
         }
         return v;
     }
-    
+
     public function hasFieldMeta(f:Field, items:Array<String>):Bool {
         var r = false;
         for (item in items) {
@@ -316,15 +318,15 @@ class ClassBuilder {
                 }
             }
         }
-        
+
         return r;
     }
-    
+
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Vars
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    
-    public function findVar(name:String) {
+
+    public function findVar(name:String):VarBuilder {
         var v = null;
         for (f in fields) {
             if (f.name == name) {
@@ -336,10 +338,10 @@ class ClassBuilder {
                 }
             }
         }
-        
+
         return v;
     }
-    
+
     public function addVar(name:String, t:ComplexType, e:Expr = null, access:Array<Access> = null, meta:Metadata = null):Field {
         if (access == null) {
             if (StringTools.startsWith(name, "_")) {
@@ -362,11 +364,11 @@ class ClassBuilder {
         fields.push(newField);
         return newField;
     }
-    
+
     public function hasVar(name:String):Bool {
         return (findVar(name) != null);
     }
-    
+
     public function removeVar(name:String) {
         var v = null;
         for (f in fields) {
@@ -379,13 +381,13 @@ class ClassBuilder {
                 }
             }
         }
-        
+
         if (v != null) {
             fields.remove(v);
         }
     }
-    
-    public function getVarsWithMeta(meta:String) {
+
+    public function getVarsWithMeta(meta:String):Array<VarBuilder> {
         var vars = [];
         for (f in fields) {
             switch (f.kind) {
@@ -400,15 +402,14 @@ class ClassBuilder {
         }
         return vars;
     }
-    
+
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Properties
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    
+
     public function addGetter(name:String, t:ComplexType, e:Expr, access:Array<Access> = null, addVar:Bool = true, isOverride:Bool = false):FieldBuilder {
         if (e == null) {
-            e = macro {
-            }
+            e = macro {}
         }
         if (access == null) {
             if (StringTools.startsWith(name, "_")) {
@@ -417,7 +418,7 @@ class ClassBuilder {
                 access = [APublic];
             }
         }
-        
+
         if (addVar == true) {
             var field:Field = findField(name);
             if (field == null) {
@@ -437,10 +438,12 @@ class ClassBuilder {
                         newKind = FProp("get", existingSet, existingType, existingExpr);
                     case _:
                 }
+                #if macro
                 field.kind = newKind;
+                #end
             }
         }
-        
+
         var fn = findFunction('get_${name}');
         if (fn == null) {
             var access = [APrivate];
@@ -451,11 +454,10 @@ class ClassBuilder {
         } else {
             fn.fn.expr = e;
         }
-        
+
         return new FieldBuilder(findField(name), this);
     }
-    
-    
+
     public function addSetter(name:String, t:ComplexType, e:Expr, access:Array<Access> = null, paramName:String = "value", addVar:Bool = true, isOverride:Bool = false):FieldBuilder {
         if (e == null) {
             e = macro {
@@ -469,7 +471,7 @@ class ClassBuilder {
                 access = [APublic];
             }
         }
-        
+
         if (addVar == true) {
             var field:Field = findField(name);
             if (field == null) {
@@ -489,10 +491,12 @@ class ClassBuilder {
                         newKind = FProp(existingGet, "set", existingType, existingExpr);
                     case _:
                 }
+                #if macro
                 field.kind = newKind;
+                #end
             }
         }
-        
+
         var fn = findFunction('set_${name}');
         if (fn == null) {
             var access = [APrivate];
@@ -503,23 +507,22 @@ class ClassBuilder {
         } else {
             fn.fn.expr = e;
         }
-        
+
         return new FieldBuilder(findField(name), this);
-   }
-    
+    }
+
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Functions
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    
+
     public var constructor(get, null):FunctionBuilder;
     private function get_constructor():FunctionBuilder {
         return findFunction("new");
     }
-    
+
     public function addFunction(name:String, e:Expr = null, args:Array<FunctionArg> = null, r:ComplexType = null, access:Array<Access> = null):FunctionBuilder {
         if (e == null) {
-            e = macro {
-            }
+            e = macro {}
         }
         if (access == null) {
             if (StringTools.startsWith(name, "_")) {
@@ -547,7 +550,7 @@ class ClassBuilder {
         fields.push(newField);
         return findFunction(name);
     }
-    
+
     public function findFunction(name:String):FunctionBuilder {
         var fn = null;
         for (f in fields) {
@@ -562,7 +565,7 @@ class ClassBuilder {
         }
         return fn;
     }
-    
+
     public function findFunctionsWithMeta(meta:String):Array<FunctionBuilder> {
         var fns:Array<FunctionBuilder> = [];
         for (f in fields) {
@@ -576,7 +579,7 @@ class ClassBuilder {
         }
         return fns;
     }
-    
+
     public function hasFunction(name:String):Bool {
         return (findFunction(name) != null);
     }
@@ -593,12 +596,12 @@ class ClassBuilder {
                 }
             }
         }
-        
+
         if (fn != null) {
             fields.remove(fn);
         }
     }
-    
+
     public function addToFunction(name:String, e:Expr = null, cb:CodeBuilder = null, where:CodePos = null) {
         if (where == null) {
             where = CodePos.End;

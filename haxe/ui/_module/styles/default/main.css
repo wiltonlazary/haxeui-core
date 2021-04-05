@@ -39,6 +39,10 @@
     animation: animationFadeIn 0.1s linear 0s 1 reverse;
 }
 
+.default-background {
+    background-color: white;
+}
+
 /************************************************************************
 ** CONTAINERS
 *************************************************************************/
@@ -57,6 +61,12 @@
 .label {
     width: auto;
     height: auto;
+    content-type: auto;
+    color: black;
+}
+    
+.label:disabled {
+    color: #909090;
 }
 
 /************************************************************************
@@ -65,4 +75,18 @@
 .image {
     width: auto;
     height: auto;
+}
+
+.image:disabled {
+    filter: grayscale;
+}
+
+/************************************************************************
+** DRAG & DROP
+*************************************************************************/
+.draggable {
+    cursor: move;
+}
+
+.dragging {
 }

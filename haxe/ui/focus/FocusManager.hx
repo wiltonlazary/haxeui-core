@@ -1,6 +1,15 @@
 package haxe.ui.focus;
 
 import haxe.ui.core.Component;
+import haxe.ui.core.Screen;
+import haxe.ui.events.MouseEvent;
+import haxe.ui.focus.IFocusable;
+
+#if (haxe_ver >= 4.2)
+import Std.isOfType;
+#else
+import Std.is as isOfType;
+#end
 
 class FocusInfo {
     public function new() {
@@ -29,8 +38,20 @@ class FocusManager {
     public function new() {
         _views = [];
         _focusInfo = new Map<Component, FocusInfo>();
+        Screen.instance.registerEvent(MouseEvent.MOUSE_DOWN, onScreenMouseDown);
     }
 
+    private function onScreenMouseDown(event:MouseEvent) {
+        var list = Screen.instance.findComponentsUnderPoint(event.screenX, event.screenY);
+        for (l in list) {
+            if (isOfType(l, IFocusable)) {
+                return;
+            }
+        }
+        
+        focus = null;
+    }
+    
     public function pushView(component:Component) {
         _views.push(component);
     }
@@ -38,6 +59,10 @@ class FocusManager {
     public function popView() {
         var c = _views.pop();
         _focusInfo.remove(c);
+    }
+
+    public function removeView(component:Component) {
+        _views.remove(component);
     }
 
     public var focusInfo(get, null):FocusInfo;
@@ -63,14 +88,14 @@ class FocusManager {
         return focusInfo.currentFocus;
     }
     private function set_focus(value:IFocusable):IFocusable {
-        if (value != null && Std.is(value, IFocusable) == false) {
+        if (value != null && (value is IFocusable) == false) {
             throw "Component does not implement IFocusable";
         }
-        
+
         if (focusInfo == null) { // TODO: just a patch for now, this all needs reworking
             return value;
         }
-        
+
         if (focusInfo.currentFocus != null && focusInfo.currentFocus != value) {
             focusInfo.currentFocus.focus = false;
             focusInfo.currentFocus = null;
@@ -135,7 +160,7 @@ class FocusManager {
 
     private function buildFocusableList(c:Component, list:Array<IFocusable>):IFocusable {
         var currentFocus = null;
-        if (Std.is(c, IFocusable)) {
+        if ((c is IFocusable)) {
             var f:IFocusable = cast c;
             if (f.allowFocus == true) {
                 if (f.focus == true) {

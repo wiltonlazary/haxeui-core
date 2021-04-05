@@ -1,0 +1,55 @@
+.button {
+    background: #3e4142 #36383a;
+    border-color: #181a1b;
+    color: #b4b4b4;
+}
+
+.button:hover {
+    background: #434647 #393b3c;
+    border-color: #181a1b;
+    color: #d4d4d4;
+}
+
+.button:down {
+    background: #2f3132 #27292a;
+    border-color: #181a1b;
+    color: #d4d4d4;
+}
+
+.button:disabled {
+    color: #595959;
+    cursor: default;
+}
+
+/************************************************************************
+** BUTTON BARS
+*************************************************************************/
+.button-bar {
+    spacing: 0;
+}
+
+.button-bar .button {
+    border-radius: 0;
+    border-color: #181a1b;
+}
+
+.button-bar .button:down {
+    background-color: #415982;
+    color: white;
+}
+
+.horizontal-button-bar .button {
+    border-left-size: 0;
+}
+
+.horizontal-button-bar .button.first {
+    border-left-size: 1;
+}
+
+.vertical-button-bar .button {
+    border-top-size: 0;
+}
+
+.vertical-button-bar .button.first {
+    border-top-size: 1;
+}

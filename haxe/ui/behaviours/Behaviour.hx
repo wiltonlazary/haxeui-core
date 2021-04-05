@@ -11,8 +11,8 @@ class Behaviour {
     private var config:Map<String, String> = null;
 
     private var _component:Component;
-    public var id:String; // for debug   
-    
+    public var id:String; // for debug
+
     public function new(component:Component) {
         _component = component;
     }
@@ -24,13 +24,17 @@ class Behaviour {
 
     }
 
+    public function setDynamic(value:Dynamic) {
+        set(Variant.fromDynamic(value));
+    }
+
     /**
      Called when behaviour is no longer needed
     **/
     public function detatch() {
-        
+
     }
-    
+
     /**
      Called when a component property getter is called
     **/
@@ -39,9 +43,9 @@ class Behaviour {
     }
 
     public function getDynamic():Dynamic {
-        return null;
+        return Variant.toDynamic(get());
     }
-    
+
     /**
      Update this behaviour with its current value
     **/

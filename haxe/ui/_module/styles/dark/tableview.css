@@ -1,0 +1,81 @@
+/************************************************************************
+** HEADER
+*************************************************************************/
+.header {
+    width: auto;
+    height: auto;
+    spacing: 0;
+}
+
+.header .column {
+    border-radius: 0;
+    icon-position: far-right;
+}
+
+.header .sortable {
+    icon: "haxeui-core/styles/default/up_down_arrows.png";
+    icon-position: far-right;
+}
+
+/************************************************************************
+** TABLEVIEW
+*************************************************************************/
+.tableview {
+    border: 1px solid #181a1b;
+    border-radius: 1px;
+    padding: 1px;
+    width: auto;
+    height: auto;
+    background-color: #252728;
+    spacing: 0;
+}
+
+.tableview .tableview-contents {
+    spacing: 0;
+    width: 100%;
+    padding: 0px;
+}
+
+.tableview .even {
+    background-color: #252728;
+    cursor: pointer;
+}
+
+.tableview .odd {
+    background-color: #2a2c2d;
+    cursor: pointer;
+}
+
+.tableview .compounditemrenderer .itemrenderer {
+    height: auto;
+    padding: 5px;
+}
+
+.tableview .even:hover {
+    background-color: #2f3746;
+}
+
+.tableview .odd:hover {
+    background-color: #2f3746;
+}
+
+.tableview .compounditemrenderer .label {
+    color: #d4d4d4;
+}
+
+.tableview .compounditemrenderer:selected {
+    background-color: #415982;
+    color: white;
+}
+
+.tableview .compounditemrenderer:selected .label {
+    color: white;
+}
+
+.tableview .compounditemrenderer:disabled {
+    color: #595959;
+}
+
+.tableview .compounditemrenderer:disabled .label {
+    color: #595959;
+}

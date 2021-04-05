@@ -7,8 +7,8 @@ import haxe.ui.behaviours.LayoutBehaviour;
 import haxe.ui.binding.BindingManager;
 import haxe.ui.components.VerticalScroll;
 import haxe.ui.constants.SelectionMode;
-import haxe.ui.containers.ScrollView;
 import haxe.ui.containers.ScrollView.ScrollViewBuilder;
+import haxe.ui.containers.ScrollView.ScrollViewEvents;
 import haxe.ui.core.Component;
 import haxe.ui.core.IDataComponent;
 import haxe.ui.core.InteractiveComponent;
@@ -39,9 +39,10 @@ class ListView extends ScrollView implements IDataComponent implements IVirtualC
     @:behaviour(SelectedItemsBehaviour)                         public var selectedItems:Array<Dynamic>;
     @:behaviour(SelectionModeBehaviour, SelectionMode.ONE_ITEM) public var selectionMode:SelectionMode;
     @:behaviour(DefaultBehaviour, 500)                          public var longPressSelectionTime:Int;  //ms
+    @:clonable @:value(selectedIndex)                           public var value:Dynamic;
 
     @:event(ItemEvent.COMPONENT_EVENT)                          public var onComponentEvent:ItemEvent->Void;
-    
+
     //TODO - error with Behaviour
     private var _itemRendererFunction:ItemRendererFunction2;
     public var itemRendererFunction(get, set):ItemRendererFunction2;
@@ -108,21 +109,21 @@ class ListViewEvents extends ScrollViewEvents {
         registerEvent(UIEvent.RENDERER_CREATED, onRendererCreated);
         registerEvent(UIEvent.RENDERER_DESTROYED, onRendererDestroyed);
     }
-    
+
     public override function unregister() {
         super.unregister();
         unregisterEvent(ScrollEvent.CHANGE, onScrollChange);
         unregisterEvent(UIEvent.RENDERER_CREATED, onRendererCreated);
         unregisterEvent(UIEvent.RENDERER_DESTROYED, onRendererDestroyed);
     }
-    
-    private function onScrollChange(e:ScrollEvent):Void {
+
+    private function onScrollChange(e:ScrollEvent) {
         if (_listview.virtual == true) {
             _listview.invalidateComponentLayout();
         }
     }
 
-    private function onRendererCreated(e:UIEvent):Void {
+    private function onRendererCreated(e:UIEvent) {
         var instance:ItemRenderer = cast(e.data, ItemRenderer);
         instance.registerEvent(MouseEvent.MOUSE_DOWN, onRendererMouseDown);
         instance.registerEvent(MouseEvent.CLICK, onRendererClick);
@@ -143,7 +144,7 @@ class ListViewEvents extends ScrollViewEvents {
     }
 
     private function onRendererMouseDown(e:MouseEvent) {
-        switch(_listview.selectionMode) {
+        switch (_listview.selectionMode) {
             case SelectionMode.MULTIPLE_LONG_PRESS:
                 if (_listview.selectedIndices.length == 0) {
                     startLongPressSelection(e);
@@ -158,7 +159,8 @@ class ListViewEvents extends ScrollViewEvents {
 
     private function startLongPressSelection(e:MouseEvent) {
         var timerClick:Timer = null;
-        var currentMouseX:Float = e.screenX, currentMouseY:Float = e.screenY;
+        var currentMouseX:Float = e.screenX;
+        var currentMouseY:Float = e.screenY;
         var renderer:ItemRenderer = cast(e.target, ItemRenderer);
         var __onMouseMove:MouseEvent->Void = null;
         var __onMouseUp:MouseEvent->Void = null;
@@ -200,7 +202,7 @@ class ListViewEvents extends ScrollViewEvents {
             }
         }, _listview.longPressSelectionTime);
     }
-    
+
     private override function onContainerEventsStatusChanged() {
         super.onContainerEventsStatusChanged();
         if (_containerEventsPaused == true) {
@@ -214,21 +216,21 @@ class ListViewEvents extends ScrollViewEvents {
             */
         }
     }
-    
-    private function onRendererClick(e:MouseEvent):Void {
+
+    private function onRendererClick(e:MouseEvent) {
         if (_containerEventsPaused == true) {
             return;
         }
-        
+
         var components = e.target.findComponentsUnderPoint(e.screenX, e.screenY);
         for (component in components) {
-            if (Std.is(component, InteractiveComponent) && cast(component, InteractiveComponent).allowInteraction == true) {
+            if ((component is InteractiveComponent) && cast(component, InteractiveComponent).allowInteraction == true) {
                 return;
             }
         }
 
         var renderer:ItemRenderer = cast(e.target, ItemRenderer);
-        switch(_listview.selectionMode) {
+        switch (_listview.selectionMode) {
             case SelectionMode.DISABLED:
 
             case SelectionMode.ONE_ITEM:
@@ -242,18 +244,15 @@ class ListViewEvents extends ScrollViewEvents {
                     toggleSelection(renderer);
                 } else if (e.shiftKey == true) {
                     var selectedIndices:Array<Int> = _listview.selectedIndices;
-                    var fromIndex:Int = selectedIndices.length > 0 ? selectedIndices[selectedIndices.length-1]: 0;
+                    var fromIndex:Int = selectedIndices.length > 0 ? selectedIndices[selectedIndices.length - 1]: 0;
                     var toIndex:Int = renderer.itemIndex;
-                    if (fromIndex < toIndex)
-                    {
+                    if (fromIndex < toIndex) {
                         for (i in selectedIndices) {
                             if (i < fromIndex) {
                                 fromIndex = i;
                             }
                         }
-                    }
-                    else
-                    {
+                    } else {
                         var tmp:Int = fromIndex;
                         fromIndex = toIndex;
                         toIndex = tmp;
@@ -288,7 +287,7 @@ class ListViewEvents extends ScrollViewEvents {
     }
 
     private function selectRange(fromIndex:Int, toIndex:Int) {
-        _listview.selectedIndices = [for (i in fromIndex...toIndex+1) i];
+        _listview.selectedIndices = [for (i in fromIndex...toIndex + 1) i];
     }
 }
 
@@ -314,11 +313,11 @@ private class ListViewBuilder extends ScrollViewBuilder {
             _contents.addClass("listview-contents");
         }
     }
-    
+
     @:access(haxe.ui.backend.ComponentImpl)
     public override function addComponent(child:Component):Component {
         var r = null;
-        if (Std.is(child, ItemRenderer) && (_listview.itemRenderer == null && _listview.itemRendererFunction == null && _listview.itemRendererClass == null)) {
+        if ((child is ItemRenderer) && (_listview.itemRenderer == null && _listview.itemRendererFunction == null && _listview.itemRendererClass == null)) {
             _listview.itemRenderer = cast(child, ItemRenderer);
             _listview.itemRenderer.ready();
             _listview.itemRenderer.handleVisibility(false);
@@ -328,14 +327,14 @@ private class ListViewBuilder extends ScrollViewBuilder {
         }
         return r;
     }
-    
+
     public override function onVirtualChanged() {
         _contents.layoutName = _listview.virtual ? "absolute" : "vertical";
     }
-    
+
     public function addItemRendererClass(child:Component, className:String, add:Bool = true) {
         child.walkComponents(function(c) {
-            if (Std.is(c, ItemRenderer)) {
+            if ((c is ItemRenderer)) {
                 if (add == true) {
                     c.addClass(className);
                     Toolkit.callLater(function() {
@@ -350,7 +349,7 @@ private class ListViewBuilder extends ScrollViewBuilder {
             return true;
         });
     }
-    
+
     private function ensureVisible(itemToEnsure:ItemRenderer) {
         if (itemToEnsure != null && _listview.virtual == false) { // TODO: virtual scroll into view
             var vscroll:VerticalScroll = _listview.findComponent(VerticalScroll);
@@ -391,7 +390,7 @@ private class DataSourceBehaviour extends DataBehaviour {
             _component.invalidateComponentLayout();
         }
     }
-    
+
     public override function get():Variant {
         if (_value == null || _value.isNull) {
             _value = new ArrayDataSource<Dynamic>();
@@ -406,7 +405,7 @@ private class SelectedIndexBehaviour extends Behaviour {
     public override function get():Variant {
         var listView:ListView = cast(_component, ListView);
         var selectedIndices:Array<Int> = listView.selectedIndices;
-        return selectedIndices != null && selectedIndices.length > 0 ? selectedIndices[selectedIndices.length-1] : -1;
+        return selectedIndices != null && selectedIndices.length > 0 ? selectedIndices[selectedIndices.length - 1] : -1;
     }
 
     public override function set(value:Variant) {
@@ -444,7 +443,7 @@ private class SelectedIndicesBehaviour extends DataBehaviour {
         var selectedIndices:Array<Int> = listView.selectedIndices;
         var contents:Component = _component.findComponent("scrollview-contents", false, "css");
         var builder:ListViewBuilder = cast(_component._compositeBuilder, ListViewBuilder);
-        
+
         for (child in contents.childComponents) {
             if (selectedIndices.indexOf(cast(child, ItemRenderer).itemIndex) != -1) {
                 builder.addItemRendererClass(child, ":selected");
@@ -508,8 +507,8 @@ private class SelectionModeBehaviour extends DataBehaviour {
             return;
         }
 
-        var selectionMode:SelectionMode = cast _value;
-        switch(selectionMode) {
+        var selectionMode:SelectionMode = _value.toString();
+        switch (selectionMode) {
             case SelectionMode.DISABLED:
                 listView.selectedIndices = null;
 

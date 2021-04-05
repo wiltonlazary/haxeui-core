@@ -5,11 +5,12 @@ import haxe.ui.behaviours.DataBehaviour;
 import haxe.ui.behaviours.DefaultBehaviour;
 import haxe.ui.behaviours.LayoutBehaviour;
 import haxe.ui.binding.BindingManager;
+import haxe.ui.components.Column;
 import haxe.ui.components.Label;
 import haxe.ui.components.VerticalScroll;
 import haxe.ui.constants.SelectionMode;
-import haxe.ui.containers.ScrollView;
 import haxe.ui.containers.ScrollView.ScrollViewBuilder;
+import haxe.ui.containers.ScrollView.ScrollViewEvents;
 import haxe.ui.core.Component;
 import haxe.ui.core.IDataComponent;
 import haxe.ui.core.InteractiveComponent;
@@ -25,6 +26,7 @@ import haxe.ui.geom.Rectangle;
 import haxe.ui.layouts.LayoutFactory;
 import haxe.ui.layouts.VerticalVirtualLayout;
 import haxe.ui.util.MathUtil;
+import haxe.ui.util.StringUtil;
 import haxe.ui.util.Variant;
 
 @:composite(Events, Builder, Layout)
@@ -43,9 +45,14 @@ class TableView extends ScrollView implements IDataComponent implements IVirtual
     @:behaviour(SelectedItemsBehaviour)                         public var selectedItems:Array<Dynamic>;
     @:behaviour(SelectionModeBehaviour, SelectionMode.ONE_ITEM) public var selectionMode:SelectionMode;
     @:behaviour(DefaultBehaviour, 500)                          public var longPressSelectionTime:Int;  //ms
+    @:behaviour(GetHeader)                                      public var header:Component;
+
+    @:call(ClearTable)                                          public function clearContents(clearHeader:Bool = false);
+    @:call(AddColumn)                                           public function addColumn(text:String):Component;
+    @:call(RemoveColumn)                                        public function removeColumn(text:String);
 
     @:event(ItemEvent.COMPONENT_EVENT)                          public var onComponentEvent:ItemEvent->Void;
-    
+
     //TODO - error with Behaviour
     private var _itemRendererFunction:ItemRendererFunction4;
     public var itemRendererFunction(get, set):ItemRendererFunction4;
@@ -122,20 +129,19 @@ private class Events extends ScrollViewEvents {
         registerEvent(UIEvent.RENDERER_CREATED, onRendererCreated);
         registerEvent(UIEvent.RENDERER_DESTROYED, onRendererDestroyed);
     }
-    
+
     public override function unregister() {
         super.unregister();
         unregisterEvent(ScrollEvent.CHANGE, onScrollChange);
         unregisterEvent(UIEvent.RENDERER_CREATED, onRendererCreated);
         unregisterEvent(UIEvent.RENDERER_DESTROYED, onRendererDestroyed);
     }
-    
-    private function onScrollChange(e:ScrollEvent):Void {
+
+    private function onScrollChange(e:ScrollEvent) {
         _tableview.invalidateComponentLayout();
     }
 
-
-    private function onRendererCreated(e:UIEvent):Void {
+    private function onRendererCreated(e:UIEvent) {
         var instance:ItemRenderer = cast(e.data, ItemRenderer);
         instance.registerEvent(MouseEvent.MOUSE_DOWN, onRendererMouseDown);
         instance.registerEvent(MouseEvent.CLICK, onRendererClick);
@@ -155,9 +161,8 @@ private class Events extends ScrollViewEvents {
         }
     }
 
-
     private function onRendererMouseDown(e:MouseEvent) {
-        switch(_tableview.selectionMode) {
+        switch (_tableview.selectionMode) {
             case SelectionMode.MULTIPLE_LONG_PRESS:
                 if (_tableview.selectedIndices.length == 0) {
                     startLongPressSelection(e);
@@ -169,7 +174,8 @@ private class Events extends ScrollViewEvents {
 
     private function startLongPressSelection(e:MouseEvent) {
         var timerClick:Timer = null;
-        var currentMouseX:Float = e.screenX, currentMouseY:Float = e.screenY;
+        var currentMouseX:Float = e.screenX;
+        var currentMouseY:Float = e.screenY;
         var renderer:ItemRenderer = cast(e.target, ItemRenderer);
         var __onMouseMove:MouseEvent->Void = null;
         var __onMouseUp:MouseEvent->Void = null;
@@ -225,21 +231,21 @@ private class Events extends ScrollViewEvents {
             */
         }
     }
-    
-    private function onRendererClick(e:MouseEvent):Void {
+
+    private function onRendererClick(e:MouseEvent) {
         if (_containerEventsPaused == true) {
             return;
         }
-        
+
         var components = e.target.findComponentsUnderPoint(e.screenX, e.screenY);
         for (component in components) {
-            if (Std.is(component, InteractiveComponent) && cast(component, InteractiveComponent).allowInteraction == true) {
+            if ((component is InteractiveComponent) && cast(component, InteractiveComponent).allowInteraction == true) {
                 return;
             }
         }
 
         var renderer:ItemRenderer = cast(e.target, ItemRenderer);
-        switch(_tableview.selectionMode) {
+        switch (_tableview.selectionMode) {
             case SelectionMode.DISABLED:
 
             case SelectionMode.ONE_ITEM:
@@ -253,18 +259,15 @@ private class Events extends ScrollViewEvents {
                     toggleSelection(renderer);
                 } else if (e.shiftKey == true) {
                     var selectedIndices:Array<Int> = _tableview.selectedIndices;
-                    var fromIndex:Int = selectedIndices.length > 0 ? selectedIndices[selectedIndices.length-1]: 0;
+                    var fromIndex:Int = selectedIndices.length > 0 ? selectedIndices[selectedIndices.length - 1]: 0;
                     var toIndex:Int = renderer.itemIndex;
-                    if (fromIndex < toIndex)
-                    {
+                    if (fromIndex < toIndex) {
                         for (i in selectedIndices) {
                             if (i < fromIndex) {
                                 fromIndex = i;
                             }
                         }
-                    }
-                    else
-                    {
+                    } else {
                         var tmp:Int = fromIndex;
                         fromIndex = toIndex;
                         toIndex = tmp;
@@ -299,7 +302,7 @@ private class Events extends ScrollViewEvents {
     }
 
     private function selectRange(fromIndex:Int, toIndex:Int) {
-        _tableview.selectedIndices = [for (i in fromIndex...toIndex+1) i];
+        _tableview.selectedIndices = [for (i in fromIndex...toIndex + 1) i];
     }
 }
 
@@ -340,31 +343,32 @@ private class Builder extends ScrollViewBuilder {
         } else {
             fillExistingRenderer();
         }
-        
+
         _component.invalidateComponentLayout();
     }
-    
+
     private override function createContentContainer(layoutName:String) {
         if (_contents == null) {
             super.createContentContainer(layoutName);
             _contents.addClass("tableview-contents");
         }
     }
-    
+
     public override function addComponent(child:Component):Component {
         var r = null;
-        if (Std.is(child, ItemRenderer)) {
+        if ((child is ItemRenderer)) {
             var itemRenderer = _tableview.itemRenderer;
             if (itemRenderer == null) {
                 itemRenderer = new CompoundItemRenderer();
                 _tableview.itemRenderer = itemRenderer;
             }
             itemRenderer.addComponent(child);
-            
+
             return child;
-        } else if (Std.is(child, Header)) {
+        } else if ((child is Header)) {
             _header = cast(child, Header);
-            
+            _header.registerEvent(UIEvent.COMPONENT_ADDED, onColumnAdded);
+
             /*
             if (_tableview.itemRenderer == null) {
                 buildDefaultRenderer();
@@ -372,22 +376,32 @@ private class Builder extends ScrollViewBuilder {
                 fillExistingRenderer();
             }
             */
-            
+
             r = null;
         } else {
             r = super.addComponent(child);
         }
         return r;
     }
-    
+
+    private function onColumnAdded(e) {
+        if (_tableview.itemRenderer == null) {
+            buildDefaultRenderer();
+        } else {
+            fillExistingRenderer();
+        }
+
+        _component.invalidateComponentLayout();
+    }
+
     public override function removeComponent(child:Component, dispose:Bool = true, invalidate:Bool = true):Component {
-        if (Std.is(child, Header) == true) {
+        if ((child is Header) == true) {
             _header = null;
             return null;
         }
         return super.removeComponent(child, dispose, invalidate);
     }
-    
+
     public function buildDefaultRenderer() {
         var r = new CompoundItemRenderer();
         if (_header != null) {
@@ -403,7 +417,7 @@ private class Builder extends ScrollViewBuilder {
         }
         _tableview.itemRenderer = r;
     }
-    
+
     public function fillExistingRenderer() {
         for (column in _header.childComponents) {
             var existing = _tableview.itemRenderer.findComponent(column.id, ItemRenderer, true);
@@ -417,8 +431,33 @@ private class Builder extends ScrollViewBuilder {
                 _tableview.itemRenderer.addComponent(itemRenderer);
             }
         }
+
+        var data = _component.findComponent("tableview-contents", Box, true, "css");
+        if (data != null) {
+            for (item in data.childComponents) {
+                for (column in _header.childComponents) {
+                    var existing = item.findComponent(column.id, ItemRenderer, true);
+                    if (existing == null) {
+                        var temp = _tableview.itemRenderer.findComponent(column.id, Component);
+                        var renderer:ItemRenderer = null;
+                        if ((temp is ItemRenderer)) {
+                            renderer = cast(temp, ItemRenderer);
+                        } else {
+                            renderer = temp.findAncestor(ItemRenderer);
+                        }
+                        var index = _tableview.itemRenderer.getComponentIndex(renderer);
+                        var instance = renderer.cloneComponent();
+                        if (index < 0) {
+                            item.addComponent(instance);
+                        } else {
+                            item.addComponentAt(instance, index);
+                        }
+                    }
+                }
+            }
+        }
     }
-    
+
     private override function verticalConstraintModifier():Float {
         if (_header == null) {
             return 0;
@@ -426,18 +465,18 @@ private class Builder extends ScrollViewBuilder {
 
         return _header.height;
     }
-    
+
     public override function onVirtualChanged() {
         _contents.layoutName = _tableview.virtual ? "absolute" : "vertical";
     }
-    
+
     private override function get_virtualHorizontal():Bool {
         return false;
     }
-    
+
     public function addItemRendererClass(child:Component, className:String, add:Bool = true) {
         child.walkComponents(function(c) {
-            if (Std.is(c, ItemRenderer)) {
+            if ((c is ItemRenderer)) {
                 if (add == true) {
                     c.addClass(className);
                 } else {
@@ -458,7 +497,7 @@ private class Layout extends VerticalVirtualLayout {
     private override function itemClass(index:Int, data:Dynamic):Class<ItemRenderer> {
         return CompoundItemRenderer;
     }
-    
+
     public override function repositionChildren() {
         var header = findComponent(Header, true);
         if (header == null) {
@@ -467,11 +506,17 @@ private class Layout extends VerticalVirtualLayout {
 
         super.repositionChildren();
 
-        header.left = paddingLeft;// + marginLeft(header);
-        header.top = paddingTop;// + marginTop(header);
+        header.left = paddingLeft; // + marginLeft(header);
+        header.top = paddingTop; // + marginTop(header);
+        var vscroll = _component.findComponent(VerticalScroll);
+        if (vscroll != null && vscroll.hidden == false) {
+            header.addClass("scrolling");
+        } else {
+            header.removeClass("scrolling");
+        }
         var rc:Rectangle = new Rectangle(cast(_component, ScrollView).hscrollPos + 1, 1, usableWidth, header.height);
         header.componentClipRect = rc;
-        
+
         var data = findComponent("tableview-contents", Box, true, "css");
         if (data != null) {
             data.lockLayout(true);
@@ -480,7 +525,7 @@ private class Layout extends VerticalVirtualLayout {
                 for (column in headerChildComponents) {
                     var isLast = (headerChildComponents.indexOf(column) == (headerChildComponents.length - 1));
                     var itemRenderer = item.findComponent(column.id, Component);
-                    if (itemRenderer != null && Std.is(itemRenderer, ItemRenderer) == false) {
+                    if (itemRenderer != null && (itemRenderer is ItemRenderer) == false) {
                         itemRenderer = itemRenderer.findAncestor(ItemRenderer);
                     }
                     if (itemRenderer != null) {
@@ -493,23 +538,23 @@ private class Layout extends VerticalVirtualLayout {
                     }
                 }
             }
-            
+
             data.left = paddingLeft;
             data.top = header.top + header.height - 1;
             data.componentWidth = header.width;
             data.unlockLayout(true);
         }
     }
-    
+
     private override function resizeChildren() {
         var header = findComponent(Header, true);
         if (header == null) {
             return;
         }
-        
+
         super.resizeChildren();
     }
-    
+
     private override function verticalConstraintModifier():Float {
         var header = findComponent(Header, true);
         if (header == null) {
@@ -545,7 +590,7 @@ private class DataSourceBehaviour extends DataBehaviour {
             _component.invalidateComponentLayout();
         }
     }
-    
+
     public override function get():Variant {
         if (_value == null || _value.isNull) {
             _value = new ArrayDataSource<Dynamic>();
@@ -560,7 +605,7 @@ private class SelectedIndexBehaviour extends Behaviour {
     public override function get():Variant {
         var tableView:TableView = cast(_component, TableView);
         var selectedIndices:Array<Int> = tableView.selectedIndices;
-        return selectedIndices != null && selectedIndices.length > 0 ? selectedIndices[selectedIndices.length-1] : -1;
+        return selectedIndices != null && selectedIndices.length > 0 ? selectedIndices[selectedIndices.length - 1] : -1;
     }
 
     public override function set(value:Variant) {
@@ -599,7 +644,7 @@ private class SelectedIndicesBehaviour extends DataBehaviour {
         var contents:Component = _component.findComponent("scrollview-contents", false, "css");
         var itemToEnsure:ItemRenderer = null;
         var builder:Builder = cast(_component._compositeBuilder, Builder);
-        
+
         for (child in contents.childComponents) {
             if (selectedIndices.indexOf(cast(child, ItemRenderer).itemIndex) != -1) {
                 itemToEnsure = cast(child, ItemRenderer);
@@ -621,7 +666,7 @@ private class SelectedIndicesBehaviour extends DataBehaviour {
                 }
             }
         }
-        
+
         if (tableView.selectedIndex != -1 && tableView.selectedIndices.length != 0) {
             _component.dispatch(new UIEvent(UIEvent.CHANGE));
         }
@@ -678,7 +723,7 @@ private class SelectionModeBehaviour extends DataBehaviour {
         }
 
         var selectionMode:SelectionMode = cast _value;
-        switch(selectionMode) {
+        switch (selectionMode) {
             case SelectionMode.DISABLED:
                 tableView.selectedIndices = null;
 
@@ -689,5 +734,66 @@ private class SelectionModeBehaviour extends DataBehaviour {
 
             default:
         }
+    }
+}
+
+@:dox(hide) @:noCompletion
+private class GetHeader extends DefaultBehaviour {
+    public override function get():Variant {
+        var header:Header = _component.findComponent(Header);
+        return header;
+    }
+}
+
+@:dox(hide) @:noCompletion
+private class ClearTable extends Behaviour {
+    public override function call(param:Any = null):Variant {
+        if (param == true) {
+            if (cast(_component, TableView).itemRenderer != null) {
+                cast(_component, TableView).itemRenderer.removeAllComponents();
+            }
+            var header:Header = _component.findComponent(Header);
+            if (header != null) {
+                header.removeAllComponents();
+            }
+        }
+        var contents = _component.findComponent("tableview-contents", Box, true, "css");
+        if (contents != null) {
+            contents.removeAllComponents();
+        }
+        return null;
+    }
+}
+
+@:dox(hide) @:noCompletion
+private class AddColumn extends Behaviour {
+    public override function call(param:Any = null):Variant {
+        var header:Header = _component.findComponent(Header);
+        if (header == null) {
+            header = new Header();
+            _component.addComponent(header);
+        }
+        var column = new Column();
+        column.text = param;
+        column.id = StringTools.replace(StringUtil.uncapitalizeFirstLetter(StringUtil.capitalizeHyphens(param)), " ", "");
+        header.addComponent(column);
+        return column;
+    }
+}
+
+@:dox(hide) @:noCompletion
+private class RemoveColumn extends Behaviour {
+    public override function call(param:Any = null):Variant {
+        var header:Header = _component.findComponent(Header);
+        if (header == null) {
+            return null;
+        }
+        for (c in header.childComponents) {
+            if (c.text == param) {
+                header.removeComponent(c);
+                break;
+            }
+        }
+        return null;
     }
 }

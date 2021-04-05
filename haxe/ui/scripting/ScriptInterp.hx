@@ -1,5 +1,8 @@
 package haxe.ui.scripting;
 
+#if !macro
+import haxe.ui.core.Component;
+#end
 import hscript.Interp;
 
 class ScriptInterp extends Interp {
@@ -40,6 +43,11 @@ class ScriptInterp extends Interp {
         if (v == null) {
             return v;
         }
+        #if !macro
+        if ((v is Component) || (v is Array)) {
+            return v;
+        }
+        #end
         var temp = Std.string(v);
         var regexp:EReg = new EReg("^_?(Bool|Float|Int|String)\\((.*)\\)", "g");
         if (regexp.match(temp) == false) {
@@ -55,13 +63,13 @@ class ScriptInterp extends Interp {
                 return Std.parseFloat(m2);
             case "Int":
                 return Std.parseInt(m2);
-            case "String":    
+            case "String":
                 return Std.string(m2);
-            case _:    
+            case _:
         }
         return v;
     }
-    
+
     override function set( o : Dynamic, f : String, v : Dynamic ) : Dynamic {
         if ( o == null ) {
             throw error(EInvalidAccess(f));

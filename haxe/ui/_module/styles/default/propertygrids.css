@@ -1,6 +1,4 @@
 .property-grid {
-    padding-top: 0px;
-    padding-bottom: 0px;
 }
 
 .property-grid .scrollview-contents {
@@ -23,6 +21,11 @@
     border-bottom-width: 1px;
     border-bottom-size: 1px;
     cursor: pointer;
+}
+
+.property-group-header.scrolling {
+    border-right-width: 1px;
+    border-right-size: 1px;
 }
 
 .property-group-header:hover {
@@ -49,6 +52,14 @@
     spacing: 1;
     background-color: #ABABAB;
     padding-bottom: 1px;
+}
+
+.property-group.last .property-group-contents.scrolling {
+    padding-bottom: 0px;
+}
+
+.property-group-contents.scrolling {
+    padding-right: 1px;
 }
 
 .property-group-item-label-container {

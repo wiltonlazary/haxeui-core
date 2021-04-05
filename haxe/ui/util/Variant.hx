@@ -16,6 +16,7 @@ enum VariantType {
     VT_ImageData(s:ImageData);
 }
 
+@:transitive
 abstract Variant(VariantType) from VariantType {
     // ************************************************************************************************************
     // STRINGS
@@ -178,7 +179,7 @@ abstract Variant(VariantType) from VariantType {
             default: throw "Variant Type Error";
         }
     }
-    
+
     public var isDate(get, never):Bool;
     private function get_isDate():Bool {
         switch (this) {
@@ -187,7 +188,7 @@ abstract Variant(VariantType) from VariantType {
         }
         return false;
     }
-    
+
     // ************************************************************************************************************
     // COMPONENT
     // ************************************************************************************************************
@@ -305,7 +306,7 @@ abstract Variant(VariantType) from VariantType {
     private inline function postInc():Variant {
         return if (isNumber) {
             var old = this;
-            this = VT_Float(toNumber()+1);
+            this = VT_Float(toNumber() + 1);
             old;
         } else {
             throw "Variant operation error";
@@ -315,7 +316,7 @@ abstract Variant(VariantType) from VariantType {
     @:op(++A)
     private inline function preInc():Variant {
         return if (isNumber) {
-            this = VT_Float(toNumber()+1);
+            this = VT_Float(toNumber() + 1);
         } else {
             throw "Variant operation error";
         }
@@ -336,7 +337,7 @@ abstract Variant(VariantType) from VariantType {
     private inline function postDeinc():Variant {
         return if (isNumber) {
             var old = this;
-            this = VT_Float(toNumber()-1);
+            this = VT_Float(toNumber() - 1);
             old;
         } else {
             throw "Variant operation error";
@@ -346,7 +347,7 @@ abstract Variant(VariantType) from VariantType {
     @:op(--A)
     private inline function preDeinc():Variant {
         return if (isNumber) {
-            this = VT_Float(toNumber()-1);
+            this = VT_Float(toNumber() - 1);
         } else {
             throw "Variant operation error";
         }
@@ -442,11 +443,11 @@ abstract Variant(VariantType) from VariantType {
         if (isNull && !rhs.isNull) {
             return false;
         }
-        
+
         if (!isNull && rhs.isNull) {
             return false;
         }
-        
+
         if (isNumber && rhs.isNumber) {
             return toNumber() == rhs.toNumber();
         } else if (isBool && rhs.isBool) {
@@ -454,7 +455,7 @@ abstract Variant(VariantType) from VariantType {
         } else if (isString && rhs.isString) {
             return toString() == rhs.toString();
         }
-        
+
         return false;
     }
 
@@ -462,7 +463,7 @@ abstract Variant(VariantType) from VariantType {
     private function neq(rhs:Variant):Bool {
         return !eq(rhs);
     }
-    
+
     // ************************************************************************************************************
     // HELPERS
     // ************************************************************************************************************
@@ -482,17 +483,17 @@ abstract Variant(VariantType) from VariantType {
                 }
             } else if ((("" + r) == "true" || (r + "") == "false")) {
                 v = (("" + r) == "true");
-            } else if (Std.is(r, String)) {
+            } else if ((r is String)) {
                 v = cast(r, String);
-            } else if (Std.is(r, Component)) {
+            } else if ((r is Component)) {
                 v = cast(r, Component);
-            } else if (Std.is(r, DataSource)) {
+            } else if ((r is DataSource)) {
                 v = cast r;
-            } else if (Std.is(r, Array)) {
+            } else if ((r is Array)) {
                 v = cast r;
-            } else if (Std.is(r, Date)) {
+            } else if ((r is Date)) {
                 v = cast(r, Date);
-            } else if (Std.is(r, ImageData)) {
+            } else if ((r is ImageData)) {
                 v = cast(r, ImageData);
             } else {
                 v = r;
@@ -502,7 +503,7 @@ abstract Variant(VariantType) from VariantType {
     }
 
     private static function containsOnlyDigits(s:Dynamic):Bool {
-        if (Std.is(s, Int) || Std.is(s, Float)) {
+        if ((s is Int) || (s is Float)) {
             return true;
         }
 

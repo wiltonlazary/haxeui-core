@@ -1,11 +1,12 @@
 package haxe.ui.styles.animation.util;
 
-import haxe.ui.styles.animation.util.ColorPropertyDetails;
-import haxe.ui.styles.animation.util.PropertyDetails;
+import haxe.ui.core.TypeMap;
 import haxe.ui.styles.EasingFunction;
 import haxe.ui.util.Color;
 import haxe.ui.util.StringUtil;
 import haxe.ui.util.StyleUtil;
+import haxe.ui.util.Variant;
+import haxe.ui.util.Variant.VariantType;
 
 @:structInit
 class ActuatorOptions {
@@ -19,7 +20,7 @@ class Actuator<T> {
     //***********************************************************************************************************
     // Helpers
     //***********************************************************************************************************
-    public static function tween<T>(target:T, properties:Dynamic, duration:Float, ?options:ActuatorOptions):Actuator<T> {
+    public static function tween<T>(target:T, properties:Dynamic, duration:Float, options:ActuatorOptions = null):Actuator<T> {
         var actuator = new Actuator<T>(target, properties, duration, options);
         actuator.run();
         return actuator;
@@ -49,7 +50,7 @@ class Actuator<T> {
     **/
     public var delay(default, null):Float = 0;
 
-    public function new(target:T, properties:Dynamic, duration:Float, ?options:ActuatorOptions) {
+    public function new(target:T, properties:Dynamic, duration:Float, options:ActuatorOptions = null) {
         this.target = target;
         this.properties = properties;
         this.duration = duration;
@@ -85,7 +86,7 @@ class Actuator<T> {
             _currentTime = Timer.stamp();
 
             if (delay > 0) {
-                haxe.ui.util.Timer.delay(_nextFrame, Std.int(delay*1000));
+                haxe.ui.util.Timer.delay(_nextFrame, Std.int(delay * 1000));
             } else {
                 new CallLater(_nextFrame);
             }
@@ -103,30 +104,53 @@ class Actuator<T> {
 
     private var _propertyDetails:Array<PropertyDetails<T>>;
     private var _colorPropertyDetails:Array<ColorPropertyDetails<T>>;
+    private var _stringPropertyDetails:Array<StringPropertyDetails<T>>;
 
     private function _initialize() {
         _propertyDetails = [];
         _colorPropertyDetails = [];
+        _stringPropertyDetails = [];
 
         for (p in Reflect.fields(properties)) {
             var componentProperty:String = StyleUtil.styleProperty2ComponentProperty(p);
-            
+
             var end:Dynamic = Reflect.getProperty(properties, p);
             switch (end) {
                 case Value.VDimension(Dimension.PERCENT(v)):
                     componentProperty = "percent" + StringUtil.capitalizeFirstLetter(componentProperty);
                 case _:
             }
-            
+
             var start:Dynamic = Reflect.getProperty(target, componentProperty);
             if (start == null) {
                 switch (end) {
                     case Value.VDimension(Dimension.PERCENT(v)) | Value.VNumber(v):
                         start = 0;
+                    case Value.VString(v):
+                        start = v;
                     case _:
                 }
             }
-            
+
+            var isVariant = false;
+            if (start != null) {
+                switch (start) {
+                    case VariantType.VT_String(v):
+                        start = v;
+                        isVariant = true;
+                    case _:
+                }
+            }
+
+            if (end != null) {
+                switch (end) {
+                    case VariantType.VT_String(v):
+                        end = v;
+                        isVariant = true;
+                    case _:
+                }
+            }
+
             if (start == null || end == null) {
                 continue;
             }
@@ -146,11 +170,45 @@ class Actuator<T> {
                         _colorPropertyDetails = [];
                     }
                     _colorPropertyDetails.push (details);
-                case Value.VDimension(Dimension.PERCENT(v)):    
+                case Value.VDimension(Dimension.PERCENT(v)):
                     var val:Null<Float> = v;
                     if (val != null) {
                         var details:PropertyDetails<T> = new PropertyDetails(target, componentProperty, start, val - start);
                         _propertyDetails.push (details);
+                    }
+
+                case Value.VString(v):
+
+                    var startVal:String = start;
+                    var endVal:String = ValueTools.string(end);
+                    if (endVal.indexOf("[[") != -1) {
+                        var n1 = endVal.indexOf("[[");
+                        var n2 = endVal.indexOf("]]") + 2;
+                        var before = endVal.substr(0, n1);
+                        var after = endVal.substr(n2);
+
+                        // lets find out where we are
+                        var s = StringTools.replace(startVal, before, "");
+                        s = StringTools.replace(s, after, "");
+                        var startInt = Std.parseInt(s);
+
+                        var s = StringTools.replace(endVal, before + "[[", "");
+                        s = StringTools.replace(s, "]]" + after, "");
+                        var endInt = Std.parseInt(s);
+
+                        var details:StringPropertyDetails<T> = new StringPropertyDetails(target, componentProperty, startVal, endVal);
+                        details.pattern = before + "[[n]]" + after;
+                        details.startInt = startInt;
+                        details.changeInt = endInt - startInt;
+                        var typeInfo = TypeMap.getTypeInfo(Type.getClassName(Type.getClass(target)), componentProperty);
+                        if (typeInfo != null && isVariant == false && typeInfo == "Variant") {
+                            isVariant = true;
+                        }
+                        details.isVariant = isVariant;
+                        _stringPropertyDetails.push(details);
+                    } else {
+                        var details:StringPropertyDetails<T> = new StringPropertyDetails(target, componentProperty, startVal, endVal);
+                        _stringPropertyDetails.push(details);
                     }
                 case _:
                     var val:Null<Float> = ValueTools.calcDimension(end);
@@ -159,7 +217,7 @@ class Actuator<T> {
                         _propertyDetails.push(details);
                     } else {
                         var details:PropertyDetails<T> = new PropertyDetails(target, componentProperty, start, end - start);
-                        _propertyDetails.push (details); 
+                        _propertyDetails.push (details);
                     }
             }
         }
@@ -199,6 +257,25 @@ class Actuator<T> {
             Reflect.setProperty(target, details.propertyName, details.start + (details.change * position));
         }
 
+        for (details in _stringPropertyDetails) {
+            if (details.pattern != null) {
+                var newInt = Std.int(details.startInt + (position * details.changeInt));
+                var newString = StringTools.replace(details.pattern, "[[n]]", "" + newInt);
+                if (details.isVariant) {
+                    var v:Variant = newString;
+                    Reflect.setProperty(target, details.propertyName, v);
+                } else {
+                    Reflect.setProperty(target, details.propertyName, newString);
+                }
+            } else {
+                if (position != 1) {
+                    Reflect.setProperty(target, details.propertyName, details.start);
+                } else {
+                    Reflect.setProperty(target, details.propertyName, details.end);
+                }
+            }
+        }
+
         for (details in _colorPropertyDetails) {
             var currentColor:Color = Color.fromComponents(
                 Std.int(details.start.r + (details.changeR * position)),
@@ -218,10 +295,9 @@ class Actuator<T> {
     }
 }
 
-
 private class Ease {
     public static function get(easingFunction:EasingFunction):Float->Float {
-        return switch(easingFunction) {
+        return switch (easingFunction) {
             case EasingFunction.LINEAR:
                 linear;
             case EasingFunction.EASE, EasingFunction.EASE_IN_OUT:

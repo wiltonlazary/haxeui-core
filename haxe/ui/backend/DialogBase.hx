@@ -1,22 +1,26 @@
 package haxe.ui.backend;
 
+import haxe.ui.Toolkit;
+import haxe.ui.binding.BindingManager;
 import haxe.ui.components.Button;
 import haxe.ui.containers.Box;
 import haxe.ui.containers.dialogs.Dialog;
 import haxe.ui.core.Component;
 import haxe.ui.core.Screen;
 import haxe.ui.events.MouseEvent;
+import haxe.ui.events.UIEvent;
+import haxe.ui.locale.LocaleManager;
 
 @:dox(hide) @:noCompletion
 class DialogBase extends Box {
     public var modal:Bool = true;
+    public var autoCenterDialog:Bool = true;
     public var buttons:DialogButton = null;
-    public var draggable:Bool = false;
     public var centerDialog:Bool = true;
     public var button:DialogButton = null;
-    
+
     private var _overlay:Component;
-    
+
     public var dialogContainer:haxe.ui.containers.VBox;
     public var dialogTitle:haxe.ui.containers.HBox;
     public var dialogTitleLabel:haxe.ui.components.Label;
@@ -24,51 +28,59 @@ class DialogBase extends Box {
     public var dialogContent:haxe.ui.containers.VBox;
     public var dialogFooterContainer:haxe.ui.containers.Box;
     public var dialogFooter:haxe.ui.containers.HBox;
-    
+
     public function new() {
         super();
-        
+
         dialogContainer = new haxe.ui.containers.VBox();
         dialogContainer.id = "dialog-container";
         dialogContainer.styleNames = "dialog-container";
         addComponent(dialogContainer);
-        
+
         dialogTitle = new haxe.ui.containers.HBox();
         dialogTitle.id = "dialog-title";
         dialogTitle.styleNames = "dialog-title";
+        dragInitiator = dialogTitle;
         dialogContainer.addComponent(dialogTitle);
-        
+
         dialogTitleLabel = new haxe.ui.components.Label();
-        dialogTitleLabel.id ="dialog-title-label";
+        dialogTitleLabel.id = "dialog-title-label";
         dialogTitleLabel.styleNames = "dialog-title-label";
         dialogTitleLabel.text = "HaxeUI";
         dialogTitle.addComponent(dialogTitleLabel);
-    
+
         dialogCloseButton = new haxe.ui.components.Image();
-        dialogCloseButton.id ="dialog-close-button";
+        dialogCloseButton.id = "dialog-close-button";
         dialogCloseButton.styleNames = "dialog-close-button";
         dialogTitle.addComponent(dialogCloseButton);
-        
+
         dialogContent = new haxe.ui.containers.VBox();
         dialogContent.id = "dialog-content";
         dialogContent.styleNames = "dialog-content";
+        dialogContent.registerEvent(UIEvent.RESIZE, onContentResize);
         dialogContainer.addComponent(dialogContent);
-        
+
         dialogFooterContainer = new haxe.ui.containers.Box();
-        dialogFooterContainer.percentWidth = 100;
-        dialogFooterContainer.id ="dialog-footer-container";
+        dialogFooterContainer.id = "dialog-footer-container";
         dialogFooterContainer.styleNames = "dialog-footer-container";
         dialogContainer.addComponent(dialogFooterContainer);
-        
+
         dialogFooter = new haxe.ui.containers.HBox();
-        dialogFooter.id ="dialog-footer";
+        dialogFooter.id = "dialog-footer";
         dialogFooter.styleNames = "dialog-footer";
+        dialogFooter.registerEvent(UIEvent.RESIZE, onFooterResize);
         dialogFooterContainer.addComponent(dialogFooter);
-    
+
         dialogFooterContainer.hide();
         dialogCloseButton.onClick = function(e) {
             hideDialog(DialogButton.CANCEL);
         }
+    }
+
+    private var _autoSizeDialog:Bool = false;
+    private override function onReady() {
+        super.onReady();
+        _autoSizeDialog = this.autoWidth;
     }
     
     private var _dialogParent:Component = null;
@@ -80,13 +92,14 @@ class DialogBase extends Box {
         _dialogParent = value;
         return value;
     }
-    
+
     public function showDialog(modal:Bool = true) {
         this.modal = modal;
         show();
     }
-    
+
     public override function show() {
+        handleVisibility(false);
         var dp = dialogParent;
         if (modal) {
             _overlay = new Component();
@@ -100,7 +113,7 @@ class DialogBase extends Box {
             }
         }
         createButtons();
-        
+
         if (dp != null) {
             dp.addComponent(this);
         } else {
@@ -114,6 +127,15 @@ class DialogBase extends Box {
         if (centerDialog) {
             centerDialogComponent(cast(this, Dialog));
         }
+        
+        Toolkit.callLater(function() {
+            if (centerDialog) {
+                centerDialogComponent(cast(this, Dialog));
+            }
+            Toolkit.callLater(function() {
+                handleVisibility(true);
+            });
+        });
     }
 
     private var _buttonsCreated:Bool = false;
@@ -124,7 +146,17 @@ class DialogBase extends Box {
         if (buttons != null) {
             for (button in buttons.toArray()) {
                 var buttonComponent = new Button();
-                buttonComponent.text = button.toString();
+                buttonComponent.id = button.toString();
+                var text = buttonComponent.id;
+                if (text.indexOf("{{") == 0 && text.indexOf("}}") == text.length - 2) {
+                    BindingManager.instance.addLanguageBinding(buttonComponent, "text", text);
+                    text = text.substr(2, text.length - 4);
+                }
+                var translatedText = LocaleManager.instance.lookupString(text);
+                if (translatedText != null) {
+                    text = translatedText;
+                }
+                buttonComponent.text = text;
                 buttonComponent.userData = button;
                 buttonComponent.registerEvent(MouseEvent.CLICK, onFooterButtonClick);
                 addFooterComponent(buttonComponent);
@@ -132,7 +164,7 @@ class DialogBase extends Box {
             _buttonsCreated = true;
         }
     }
-    
+
     public var closable(get, set):Bool;
     private function get_closable():Bool {
         return !dialogCloseButton.hidden;
@@ -145,11 +177,11 @@ class DialogBase extends Box {
         }
         return value;
     }
-    
+
     private function validateDialog(button:DialogButton, fn:Bool->Void) {
         fn(true);
     }
-    
+
     public override function hide() {
         validateDialog(this.button, function(result) {
             if (result == true) {
@@ -166,7 +198,7 @@ class DialogBase extends Box {
                 } else {
                     Screen.instance.removeComponent(this);
                 }
-                
+
                 var event = new DialogEvent(DialogEvent.DIALOG_CLOSED);
                 event.button = this.button;
                 dispatch(event);
@@ -178,7 +210,7 @@ class DialogBase extends Box {
         this.button = button;
         hide();
     }
-    
+
     public var title(get, set):String;
     private function get_title():String {
         return dialogTitleLabel.text;
@@ -187,43 +219,99 @@ class DialogBase extends Box {
         dialogTitleLabel.text = value;
         return value;
     }
-    
+
     public override function addComponent(child:Component):Component {
         if (child.hasClass("dialog-container")) {
             return super.addComponent(child);
         }
         return dialogContent.addComponent(child);
     }
-    
-    public override function validateComponentLayout() {
+
+    public override function validateComponentLayout():Bool {
         var b = super.validateComponentLayout();
         dialogTitle.width = this.layout.innerWidth;
-        if (autoWidth == false) {
-            dialogContent.width = this.layout.innerWidth;
+        if (_autoSizeDialog == false) {
+            var offset = this.layout.paddingLeft + this.layout.paddingRight;
+            if (dialogContent.width != this.width - offset) {
+                dialogContent.width = this.width - offset;
+            }
+            if (dialogFooterContainer.width != this.width - offset) {
+                dialogFooterContainer.width = this.width - offset;
+            }
         }
+        
         return b;
+    }
+
+    private function onContentResize(e) {
+        if (dialogFooter.width <= 0 || dialogFooterContainer.width <= 0 || _autoSizeDialog == false) {
+            return;
+        }
+
+        var cx = Math.max(dialogFooter.width, dialogContent.width);
+        var offset = this.layout.paddingLeft + this.layout.paddingRight;
+        var recenter:Bool = false;
+        
+        if (cx > 0 && cx != this.width + offset) {
+            this.width = cx + offset;
+            recenter = true;
+        }
+        
+        if (dialogFooterContainer.width != this.width - offset) {
+            dialogFooterContainer.width = this.width - offset;
+        }
+        
+        if (recenter == true && autoCenterDialog == true) {
+            centerDialogComponent(cast(this, Dialog), false);
+        }
+    }
+    
+    private function onFooterResize(e) {
+        if (dialogFooter.width <= 0 || dialogFooterContainer.width <= 0 || _autoSizeDialog == false) {
+            return;
+        }
+        var cx = Math.max(dialogFooter.width, dialogContent.width);
+        var offset = this.layout.paddingLeft + this.layout.paddingRight;
+        var recenter:Bool = false;
+        
+        if (cx > 0 && cx != this.width + offset) {
+            this.width = cx + offset;
+            recenter = true;
+        }
+        
+        if (dialogFooterContainer.width != this.width - offset) {
+            dialogFooterContainer.width = this.width - offset;
+        }
+        
+        if (recenter == true && autoCenterDialog == true) {
+            centerDialogComponent(cast(this, Dialog), false);
+        }
     }
     
     public function addFooterComponent(c:Component) {
         dialogFooterContainer.show();
         dialogFooter.addComponent(c);
     }
-    
-    public function centerDialogComponent(dialog:Dialog) {
-        dialog.syncComponentValidation();
+
+    public function centerDialogComponent(dialog:Dialog, validate:Bool = true) {
+        if (validate == true) {
+            dialog.syncComponentValidation();
+        }
         var dp = dialogParent;
         if (dp != null) {
-            dp.syncComponentValidation();
-            var x = (dp.width / 2) - (dialog.componentWidth / 2);
-            var y = (dp.height / 2) - (dialog.componentHeight / 2);
+            if (validate == true) {
+                dp.syncComponentValidation();
+            }
+            var x = (dp.actualComponentWidth / 2) - (dialog.actualComponentWidth / 2);
+            var y = (dp.actualComponentHeight / 2) - (dialog.actualComponentHeight / 2);
             dialog.moveComponent(x, y);
         } else {
-            var x = (Screen.instance.width / 2) - (dialog.componentWidth / 2);
-            var y = (Screen.instance.height / 2) - (dialog.componentHeight / 2);
+            var x = (Screen.instance.width / 2) - (dialog.actualComponentWidth / 2);
+            var y = (Screen.instance.height / 2) - (dialog.actualComponentHeight / 2);
             dialog.moveComponent(x, y);
         }
     }
-    
+
     private function onFooterButtonClick(event:MouseEvent) {
         hideDialog(event.target.userData);
     }

@@ -18,11 +18,11 @@ class ScrollViewLayout extends DefaultLayout {
         var vscroll = component.findComponent(VerticalScroll, false);
 
         if (hscroll != null && hidden(hscroll) == false) {
-            hscroll.moveComponent(paddingLeft, Math.fround(component.componentHeight - hscroll.componentHeight - paddingBottom));
+            hscroll.moveComponent(paddingLeft, Math.fround(component.componentHeight - hscroll.componentHeight - paddingBottom + marginTop(hscroll)));
         }
 
         if (vscroll != null && hidden(vscroll) == false) {
-            vscroll.moveComponent(Math.fround(component.componentWidth - vscroll.componentWidth - paddingRight), paddingTop);
+            vscroll.moveComponent(Math.fround(component.componentWidth - vscroll.componentWidth - paddingRight + marginLeft(vscroll)), paddingTop);
         }
 
         var contents:Component = component.findComponent("scrollview-contents", false, "css");
@@ -36,7 +36,7 @@ class ScrollViewLayout extends DefaultLayout {
 
         var hscroll = component.findComponent(HorizontalScroll, false);
         var vscroll = component.findComponent(VerticalScroll, false);
-        
+
         var usableSize:Size = usableSize;
         var percentWidth:Float = 100;
         var percentHeight:Float = 100;
@@ -61,11 +61,11 @@ class ScrollViewLayout extends DefaultLayout {
             if (fixedMinHeight(child) && child.percentHeight != null) {
                 percentHeight -= child.percentHeight;
             }
-            
+
             child.resizeComponent(cx, cy);
         }
     }
-    
+
     @:access(haxe.ui.backend.ComponentBase)
     private override function get_usableSize():Size {
         var size:Size = super.get_usableSize();
@@ -90,6 +90,8 @@ class ScrollViewLayout extends DefaultLayout {
             }
         }
 
+        size.width += 1;
+        
         return size;
     }
 

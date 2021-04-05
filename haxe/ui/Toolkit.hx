@@ -1,6 +1,7 @@
 package haxe.ui;
 
 import haxe.ui.backend.ToolkitOptions;
+import haxe.ui.binding.BindingManager;
 import haxe.ui.containers.dialogs.Dialog;
 import haxe.ui.containers.dialogs.MessageBox;
 import haxe.ui.containers.dialogs.MessageBox.MessageBoxType;
@@ -23,7 +24,6 @@ import haxe.ui.parsers.ui.resolvers.AssetResourceResolver;
 import haxe.ui.parsers.ui.resolvers.ResourceResolver;
 import haxe.ui.scripting.ConditionEvaluator;
 import haxe.ui.styles.CompositeStyleSheet;
-import haxe.ui.styles.StyleSheet;
 import haxe.ui.themes.ThemeManager;
 import haxe.ui.util.GenericConfig;
 import haxe.ui.util.Properties;
@@ -32,7 +32,7 @@ import haxe.ui.util.Variant;
 
 class Toolkit {
     public static var styleSheet:CompositeStyleSheet = new CompositeStyleSheet();
-    
+
     public static var properties:Map<String, String> = new Map<String, String>();
 
     public static var nativeConfig:GenericConfig = new GenericConfig();
@@ -50,19 +50,20 @@ class Toolkit {
         _theme = value;
         if (_initialized == true) {
             ThemeManager.instance.applyTheme(_theme);
+            BindingManager.instance.refreshAll();
             Screen.instance.onThemeChanged();
             Screen.instance.invalidateAll();
         }
         return value;
     }
-    
+
     private static var _backendProperties:Properties = new Properties();
     public static var backendProperties(get, null):Properties;
     private static function get_backendProperties():Properties {
         buildBackend();
         return _backendProperties;
     }
-    
+
     private static var _built:Bool = false;
     public static function build() {
         if (_built == true) {
@@ -82,7 +83,7 @@ class Toolkit {
         BackendMacros.processBackend();
         _backendBuilt = true;
     }
-    
+
     private static var _initialized:Bool = false;
     public static function init(options:ToolkitOptions = null) {
         build();
@@ -117,7 +118,7 @@ class Toolkit {
         } else if (type == "error") {
             type = MessageBoxType.TYPE_ERROR;
         }
-        
+
         var messageBox = new MessageBox();
         messageBox.type = type;
         messageBox.message = message;
@@ -133,7 +134,7 @@ class Toolkit {
         }
         return messageBox;
     }
-  
+
     public static function dialog(contents:Component, title:String = null, buttons:DialogButton = null, modal:Bool = true, callback:DialogButton->Void = null):Dialog {
         var dialog = new Dialog();
         dialog.modal = modal;
@@ -152,7 +153,7 @@ class Toolkit {
         }
         return dialog;
     }
-    
+
     public static var assets(get, null):ToolkitAssets;
     private static function get_assets():ToolkitAssets {
         return ToolkitAssets.instance;
@@ -192,7 +193,6 @@ class Toolkit {
             }
         }
         var component = buildComponentFromInfo(c, callback);
-        
 
         var fullScript = "";
         for (scriptString in c.scriptlets) {
@@ -235,8 +235,8 @@ class Toolkit {
             var layout:Layout = buildLayoutFromInfo(c.layout);
             component.layout = layout;
         }
-        
-        if (Std.is(component, haxe.ui.containers.ScrollView)) { // special properties for scrollview and derived classes
+
+        if ((component is haxe.ui.containers.ScrollView)) { // special properties for scrollview and derived classes
             var scrollview:haxe.ui.containers.ScrollView = cast(component, haxe.ui.containers.ScrollView);
             if (c.contentWidth != null)             scrollview.contentWidth = c.contentWidth;
             if (c.contentHeight != null)            scrollview.contentHeight = c.contentHeight;
@@ -255,7 +255,7 @@ class Toolkit {
             }
         }
 
-        if (Std.is(component, IDataComponent) && c.data != null) {
+        if ((component is IDataComponent) && c.data != null) {
             cast(component, IDataComponent).dataSource = new haxe.ui.data.DataSourceFactory<Dynamic>().fromString(c.dataString, haxe.ui.data.ArrayDataSource);
         }
 
@@ -269,7 +269,7 @@ class Toolkit {
         if (callback != null) {
             callback(component);
         }
-        
+
         return component;
     }
 
@@ -376,7 +376,7 @@ class Toolkit {
         scaleY = value;
         return value;
     }
-    
+
     public static function callLater(fn:Void->Void) {
         new CallLater(fn);
     }

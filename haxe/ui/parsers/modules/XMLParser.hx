@@ -1,4 +1,6 @@
 package haxe.ui.parsers.modules;
+
+import haxe.ui.parsers.modules.Module.ModuleThemeImageEntry;
 import haxe.ui.parsers.modules.Module.ModuleThemeStyleEntry;
 
 class XMLParser extends ModuleParser {
@@ -70,7 +72,7 @@ class XMLParser extends ModuleParser {
                     if (checkCondition(classNode, defines) == false) {
                         continue;
                     }
-                    
+
                     var scriptletEntry:Module.ModuleScriptletEntry = new Module.ModuleScriptletEntry();
                     scriptletEntry.classPackage = classNode.get("package");
                     scriptletEntry.className = classNode.get("class");
@@ -84,10 +86,12 @@ class XMLParser extends ModuleParser {
                     if (checkCondition(themeNode, defines) == false) {
                         continue;
                     }
-                    
+
                     var theme:Module.ModuleThemeEntry = new Module.ModuleThemeEntry();
                     theme.name = themeNode.nodeName;
                     theme.parent = themeNode.get("parent");
+
+                    // style entries
                     var lastPriority:Null<Float> = null;
                     for (styleNodes in themeNode.elementsNamed("style")) {
                         if (checkCondition(styleNodes, defines) == false) {
@@ -112,6 +116,39 @@ class XMLParser extends ModuleParser {
                         }
                         theme.styles.push(styleEntry);
                     }
+
+                    // image entries
+                    var lastPriority:Null<Float> = null;
+                    for (imageNodes in themeNode.elements()) {
+                        if (checkCondition(imageNodes, defines) == false) {
+                            continue;
+                        }
+
+                        if (imageNodes.nodeName != "image" && imageNodes.nodeName != "icon") {
+                            continue;
+                        }
+
+                        var imageEntry:ModuleThemeImageEntry = new ModuleThemeImageEntry();
+                        imageEntry.id = imageNodes.get("id");
+                        imageEntry.resource = imageNodes.get("resource");
+                        if (imageNodes.get("priority") != null) {
+                            imageEntry.priority = Std.parseFloat(imageNodes.get("priority"));
+                            lastPriority = imageEntry.priority;
+                        } else if (lastPriority != null) {
+                            lastPriority += 0.01;
+                            imageEntry.priority = lastPriority;
+                        } else if (context.indexOf("haxe/ui/backend/") != -1) { // lets auto the priority based on if we _think_ this is a backed - not fool proof, but a good start (means it doesnt HAVE to be in module.xml)
+                            if (theme.name == "global") { // special case
+                                imageEntry.priority = -2;
+                                lastPriority = -2;
+                            } else {
+                                imageEntry.priority = -1;
+                                lastPriority = -1;
+                            }
+                        }
+                        theme.images.push(imageEntry);
+                    }
+
                     module.themeEntries.set(theme.name, theme);
                 }
             } else if (nodeName == "plugins" && checkCondition(el, defines) == true) {
@@ -153,6 +190,23 @@ class XMLParser extends ModuleParser {
                     entry.id = propertyNode.get("id");
                     module.preload.push(entry);
                 }
+            } else if (nodeName == "locales" && checkCondition(el, defines) == true) {
+                for (propertyNode in el.elements()) {
+                    if (checkCondition(propertyNode, defines) == false) {
+                        continue;
+                    }
+                    var entry:Module.ModuleLocaleEntry = new Module.ModuleLocaleEntry();
+                    entry.id = propertyNode.get("id");
+                    if (propertyNode.get("resource") != null) {
+                        entry.resources.push(propertyNode.get("resource"));
+                    }
+                    for (resourceNode in propertyNode.elementsNamed("resource")) {
+                        if (resourceNode.get("path") != null) {
+                            entry.resources.push(resourceNode.get("path"));
+                        }
+                    }
+                    module.locales.push(entry);
+                }
             }
         }
 
@@ -161,10 +215,13 @@ class XMLParser extends ModuleParser {
 
     private function checkCondition(node:Xml, defines:Map<String, String>):Bool {
         if (node.get("if") != null) {
-            var condition = "haxeui_" + node.get("if");
+            var condition = node.get("if");
             return defines.exists(condition);
+        } else if (node.get("unless") != null) {
+            var condition = node.get("unless");
+            return !defines.exists(condition);
         }
-        
+
         return true;
     }
 }

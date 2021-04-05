@@ -1,5 +1,5 @@
 {
-    "version": "1.1.2",
+    "version": "1.2.3",
     "contributors": [
         "haxeui",
         "ianharrigan",
@@ -11,7 +11,7 @@
         "ui",
         "gui"
     ],
-    "releasenote": "Various tweaks / fixes",
+    "releasenote": "Tweaks and fixes",
     "dependencies": {
         "hscript": ""
     },

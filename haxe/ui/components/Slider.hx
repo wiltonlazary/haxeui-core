@@ -1,5 +1,6 @@
 package haxe.ui.components;
 
+import haxe.ui.Toolkit;
 import haxe.ui.behaviours.Behaviour;
 import haxe.ui.behaviours.DataBehaviour;
 import haxe.ui.behaviours.DefaultBehaviour;
@@ -26,7 +27,7 @@ class Slider extends InteractiveComponent implements IDirectionalComponent {
     @:clonable @:behaviour(EndBehaviour, 0)         public var end:Float;
     @:clonable @:behaviour(PosBehaviour)            public var pos:Float;
     @:clonable @:value(pos)                         public var value:Dynamic;
-    
+
     //***********************************************************************************************************
     // Private API
     //***********************************************************************************************************
@@ -45,20 +46,20 @@ private class StartBehaviour extends DataBehaviour {
         if (_component.findComponent("start-thumb") == null) {
             builder.createThumb("start-thumb");
         }
-        
+
         var slider:Slider = cast(_component, Slider);
         if (_value != null && _value < slider.min) {
             _value = slider.min;
         }
-        
+
         if (_value != null && _value > slider.max) {
             _value = slider.max;
         }
-        
+
         if (slider.precision != null) {
             _value = MathUtil.round(_value, slider.precision);
         }
-        
+
         _component.findComponent(Range).start = _value;
         _component.invalidateComponentLayout();
     }
@@ -72,15 +73,15 @@ private class EndBehaviour extends DataBehaviour {
         if (_value != null && _value < slider.min) {
             _value = slider.min;
         }
-        
+
         if (_value != null && _value > slider.max) {
             _value = slider.max;
         }
-        
+
         if (slider.precision != null) {
             _value = MathUtil.round(_value, slider.precision);
         }
-        
+
         _component.findComponent(Range).end = _value;
         cast(_component, Slider).pos = _value;
         _component.invalidateComponentLayout();
@@ -109,9 +110,12 @@ private class MaxBehaviour extends DataBehaviour {
 @:dox(hide) @:noCompletion
 private class PosBehaviour extends DataBehaviour {
     public override function get():Variant {
+        if (_component.isReady == false) {
+            return _value;
+        }
         return cast(_component, Slider).end;
     }
-    
+
     private override function validateData() {
         cast(_component, Slider).end = _value;
     }
@@ -133,30 +137,30 @@ private class PosFromCoord extends Behaviour {
 @:access(haxe.ui.components.Slider)
 private class Events extends haxe.ui.events.Events  {
     private var _slider:Slider;
-    
+
     private var _endThumb:Button;
     private var _startThumb:Button;
     private var _range:Range;
-    
+
     private var _activeThumb:Button;
-    
+
     public function new(slider:Slider) {
         super(slider);
         _slider = slider;
         _range = slider.findComponent(Range);
     }
-    
+
     public override function register() {
         _startThumb = _slider.findComponent("start-thumb");
         if (_startThumb != null && _startThumb.hasEvent(MouseEvent.MOUSE_DOWN, onThumbMouseDown) == false) {
             _startThumb.registerEvent(MouseEvent.MOUSE_DOWN, onThumbMouseDown);
         }
-        
+
         _endThumb = _slider.findComponent("end-thumb");
         if (_endThumb != null && _endThumb.hasEvent(MouseEvent.MOUSE_DOWN, onThumbMouseDown) == false) {
             _endThumb.registerEvent(MouseEvent.MOUSE_DOWN, onThumbMouseDown);
         }
-        
+
         if (_range.hasEvent(MouseEvent.MOUSE_DOWN, onRangeMouseDown) == false) {
             _range.registerEvent(MouseEvent.MOUSE_DOWN, onRangeMouseDown);
         }
@@ -164,16 +168,16 @@ private class Events extends haxe.ui.events.Events  {
             _range.registerEvent(UIEvent.CHANGE, onRangeChange);
         }
     }
-    
+
     public override function unregister() {
         if (_startThumb != null) {
             _startThumb.unregisterEvent(MouseEvent.MOUSE_DOWN, onThumbMouseDown);
         }
-        
+
         if (_endThumb != null) {
             _endThumb.unregisterEvent(MouseEvent.MOUSE_DOWN, onThumbMouseDown);
         }
-        
+
         _range.unregisterEvent(MouseEvent.MOUSE_DOWN, onRangeMouseDown);
         _range.unregisterEvent(UIEvent.CHANGE, onRangeChange);
     }
@@ -181,7 +185,7 @@ private class Events extends haxe.ui.events.Events  {
     private function onRangeChange(e:UIEvent) {
         _slider.dispatch(new UIEvent(UIEvent.CHANGE));
     }
-    
+
     private function onRangeMouseDown(e:MouseEvent) {
         if (_startThumb != null && _startThumb.hitTest(e.screenX, e.screenY) == true) {
             return;
@@ -189,63 +193,69 @@ private class Events extends haxe.ui.events.Events  {
         if (_endThumb != null && _endThumb.hitTest(e.screenX, e.screenY) == true) {
             return;
         }
-        
+
+        e.screenX *= Toolkit.scaleX;
+        e.screenY *= Toolkit.scaleY;
+        e.cancel();
+
         var coord:Point = new Point();
-        coord.x = (e.screenX - _slider.screenLeft) - _slider.paddingLeft;
-        coord.y = (e.screenY - _slider.screenTop) - _slider.paddingTop;
+        coord.x = (e.screenX - _slider.screenLeft) - _slider.paddingLeft * Toolkit.scaleX;
+        coord.y = (e.screenY - _slider.screenTop) - _slider.paddingTop * Toolkit.scaleY;
         var pos:Float = _slider.posFromCoord(coord);
-        
+
         if (_startThumb == null) {
             _slider.pos = pos;
-            startDrag(_endThumb, (_endThumb.width / 2), (_endThumb.height / 2));
+            startDrag(_endThumb, (_endThumb.actualComponentWidth / 2), (_endThumb.actualComponentHeight / 2));
             return;
         }
-        
+
         var builder:SliderBuilder = cast(_slider._compositeBuilder, SliderBuilder);
         var d1 = _slider.end - _slider.start;
         var d2 = pos - _slider.start;
         if (d2 < d1 / 2) {
             pos -= builder.getStartOffset();
             _slider.start = pos;
-            startDrag(_startThumb, (_startThumb.width / 2), (_startThumb.height / 2));
+            startDrag(_startThumb, (_startThumb.actualComponentWidth / 2), (_startThumb.actualComponentHeight / 2));
         } else if (d2 >= d1 / 2) {
             pos -= builder.getStartOffset();
             _slider.end = pos;
-            startDrag(_endThumb, (_endThumb.width / 2), (_endThumb.height / 2));
+            startDrag(_endThumb, (_endThumb.actualComponentWidth / 2), (_endThumb.actualComponentHeight / 2));
         } else if (pos > _slider.start) {
             _slider.end = pos;
-            startDrag(_endThumb, (_endThumb.width / 2), (_endThumb.height / 2));
+            startDrag(_endThumb, (_endThumb.actualComponentWidth / 2), (_endThumb.actualComponentHeight / 2));
         } else if (pos < _slider.end) {
             _slider.start = pos;
-            startDrag(_startThumb, (_startThumb.width / 2), (_startThumb.height / 2));
+            startDrag(_startThumb, (_startThumb.actualComponentWidth / 2), (_startThumb.actualComponentHeight / 2));
         }
     }
-    
+
     private var _offset:Point = null;
     private function onThumbMouseDown(e:MouseEvent) {
         e.cancel();
-        startDrag(cast(e.target, Button), e.localX, e.localY);
+        startDrag(cast(e.target, Button), e.localX * Toolkit.scaleX, e.localY * Toolkit.scaleX);
     }
-    
+
     private function startDrag(thumb:Button, offsetX:Float, offsetY:Float) {
         _offset = new Point(offsetX, offsetY);
         _activeThumb = thumb;
         Screen.instance.registerEvent(MouseEvent.MOUSE_MOVE, onScreenMouseMove);
         Screen.instance.registerEvent(MouseEvent.MOUSE_UP, onScreenMouseUp);
     }
-    
+
     private function onScreenMouseUp(e:MouseEvent) {
         _activeThumb = null;
         Screen.instance.unregisterEvent(MouseEvent.MOUSE_UP, onScreenMouseUp);
         Screen.instance.unregisterEvent(MouseEvent.MOUSE_MOVE, onScreenMouseMove);
     }
-   
+
     private function onScreenMouseMove(e:MouseEvent) {
+        e.screenX *= Toolkit.scaleX;
+        e.screenY *= Toolkit.scaleY;
         var coord:Point = new Point();
-        coord.x = (e.screenX - _slider.screenLeft - _offset.x) - _slider.paddingLeft +  (_activeThumb.width / 2);
-        coord.y = (e.screenY - _slider.screenTop - _offset.y) - _slider.paddingTop +  (_activeThumb.height / 2);
+        coord.x = (e.screenX - _slider.screenLeft - _offset.x) - (_slider.paddingLeft * Toolkit.scaleX) +  (_activeThumb.actualComponentWidth / 2);
+        coord.y = (e.screenY - _slider.screenTop - _offset.y) - (_slider.paddingTop * Toolkit.scaleX) +  (_activeThumb.actualComponentHeight / 2);
         var pos:Float = _slider.posFromCoord(coord);
-        
+
         var builder:SliderBuilder = cast(_slider._compositeBuilder, SliderBuilder);
         if (_activeThumb == _startThumb) {
             pos -= builder.getStartOffset();
@@ -275,23 +285,23 @@ class SliderBuilder extends CompositeBuilder {
             v.start = v.end = 0;
             _component.addComponent(v);
         }
-        
+
         createThumb("end-thumb");
     }
 
     public function getStartOffset():Float {
         return 0;
     }
-    
+
     private function createValueComponent():Range {
         return null;
     }
-    
+
     public function createThumb(id:String) {
         if (_component.findComponent(id) != null) {
             return;
         }
-        
+
         var b = new Button();
         b.scriptAccess = false;
         b.id = id;
@@ -299,6 +309,6 @@ class SliderBuilder extends CompositeBuilder {
         b.remainPressed = true;
         _component.addComponent(b);
 
-        _component.registerInternalEvents(Events, true); // call .register again as we might have a new thumb! 
+        _component.registerInternalEvents(Events, true); // call .register again as we might have a new thumb!
     }
 }

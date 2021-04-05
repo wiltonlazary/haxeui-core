@@ -4,7 +4,6 @@ import haxe.ui.backend.ScreenImpl;
 import haxe.ui.containers.dialogs.Dialog;
 import haxe.ui.containers.dialogs.Dialog.DialogButton;
 import haxe.ui.containers.dialogs.MessageBox.MessageBoxType;
-import haxe.ui.core.Component;
 import haxe.ui.events.UIEvent;
 import haxe.ui.focus.FocusManager;
 import haxe.ui.util.EventMap;
@@ -23,14 +22,12 @@ class Screen extends ScreenImpl {
     //***********************************************************************************************************
     // Instance
     //***********************************************************************************************************
-    public var rootComponents:Array<Component>;
-
     private var _eventMap:EventMap;
 
     public function new() {
         super();
         rootComponents = [];
-        
+
         _eventMap = new EventMap();
     }
 
@@ -45,7 +42,7 @@ class Screen extends ScreenImpl {
             FocusManager.instance.pushView(component);
             component.registerEvent(UIEvent.RESIZE, _onRootComponentResize);    //refresh vh & vw
         }
-		return component;
+        return component;
     }
 
     public override function removeComponent(component:Component):Component {
@@ -53,8 +50,9 @@ class Screen extends ScreenImpl {
         super.removeComponent(component);
         component.depth = -1;
         rootComponents.remove(component);
+        FocusManager.instance.removeView(component);
         component.unregisterEvent(UIEvent.RESIZE, _onRootComponentResize);
-		return component;
+        return component;
     }
 
     public function setComponentIndex(child:Component, index:Int):Component {
@@ -63,9 +61,17 @@ class Screen extends ScreenImpl {
             rootComponents.remove(child);
             rootComponents.insert(index, child);
         }
-		return child;
+        return child;
     }
 
+    public function findComponentsUnderPoint<T:Component>(screenX:Float, screenY:Float, type:Class<T> = null):Array<Component> {
+        var c:Array<Component> = [];
+        for (r in rootComponents) {
+            c = c.concat(r.findComponentsUnderPoint(screenX, screenY, type));
+        }
+        return c;
+    }
+    
     public function refreshStyleRootComponents() {
         for (component in rootComponents) {
             _refreshStyleComponent(component);
@@ -85,21 +91,21 @@ class Screen extends ScreenImpl {
     private function _onRootComponentResize(e:UIEvent) {
         _refreshStyleComponent(e.target);
     }
-    
+
     public function messageBox(message:String, title:String = null, type:MessageBoxType = null, modal:Bool = true, callback:DialogButton->Void = null):Dialog {
         return Toolkit.messageBox(message, title, type, modal, callback);
     }
-  
+
     public function dialog(contents:Component, title:String = null, buttons:DialogButton = null, modal:Bool = true, callback:DialogButton->Void = null):Dialog {
         return Toolkit.dialog(contents, title, buttons, modal, callback);
     }
-    
+
     public function invalidateAll() {
         for (c in rootComponents) {
             invalidateChildren(c);
         }
     }
-    
+
     private function invalidateChildren(c:Component) {
         for (child in c.childComponents) {
             invalidateChildren(child);
@@ -112,7 +118,7 @@ class Screen extends ScreenImpl {
             onThemeChangedChildren(c);
         }
     }
-    
+
     @:access(haxe.ui.core.Component)
     private function onThemeChangedChildren(c:Component) {
         for (child in c.childComponents) {
@@ -120,7 +126,7 @@ class Screen extends ScreenImpl {
         }
         c.onThemeChanged();
     }
-    
+
     //***********************************************************************************************************
     // Events
     //***********************************************************************************************************

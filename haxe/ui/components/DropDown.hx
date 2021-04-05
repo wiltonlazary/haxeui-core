@@ -2,6 +2,7 @@ package haxe.ui.components;
 
 import haxe.ui.behaviours.DataBehaviour;
 import haxe.ui.behaviours.DefaultBehaviour;
+import haxe.ui.binding.BindingManager;
 import haxe.ui.components.Button.ButtonBuilder;
 import haxe.ui.components.Button.ButtonEvents;
 import haxe.ui.containers.Box;
@@ -30,8 +31,14 @@ class DropDown extends Button implements IDataComponent {
     @:behaviour(DefaultBehaviour)                    public var dropdownSize:Null<Int>;
     @:behaviour(SelectedIndexBehaviour, -1)          public var selectedIndex:Int;
     @:behaviour(SelectedItemBehaviour)               public var selectedItem:Dynamic;
-    @:call(HideDropDown)                             public function hideDropDown():Void;
+    @:call(HideDropDown)                             public function hideDropDown();
     @:clonable @:value(selectedItem)                 public var value:Dynamic;
+
+    private override function onThemeChanged() {
+        super.onThemeChanged();
+        var builder:DropDownBuilder = cast(this._compositeBuilder, DropDownBuilder);
+        builder.onThemeChanged();
+    }
 }
 
 //***********************************************************************************************************
@@ -54,10 +61,10 @@ private class DataSourceBehaviour extends DefaultBehaviour {
         if (_value == null || _value.isNull == true) {
             _value = new ArrayDataSource<Dynamic>();
         }
-        
+
         return _value;
     }
-    
+
     public override function set(value:Variant) {
         super.set(value);
         if (value == _value) {
@@ -79,7 +86,7 @@ private class SelectedIndexBehaviour extends DataBehaviour {
         var handler:IDropDownHandler = cast(_component._compositeBuilder, DropDownBuilder).handler;
         handler.selectedIndex = _value;
     }
-    
+
     public override function get():Variant {
         if (_component.isReady == false) {
             return super.get();
@@ -87,7 +94,7 @@ private class SelectedIndexBehaviour extends DataBehaviour {
         var handler:IDropDownHandler = cast(_component._compositeBuilder, DropDownBuilder).handler;
         return handler.selectedIndex;
     }
-    
+
     public override function set(value:Variant) {
         if (_component.isReady == false) {
             super.set(value);
@@ -110,18 +117,18 @@ private class SelectedItemBehaviour extends DataBehaviour  {
         var handler:IDropDownHandler = cast(_component._compositeBuilder, DropDownBuilder).handler;
         handler.selectedItem = _value;
     }
-    
+
     public override function getDynamic():Dynamic {
         var handler:IDropDownHandler = cast(_component._compositeBuilder, DropDownBuilder).handler;
         return handler.selectedItem;
     }
-    
+
     public override function set(value:Variant) {
         if (_component.isReady == false) {
             super.set(value);
             return;
         }
-        if (value == getDynamic()) {
+        if (Variant.toDynamic(value) == getDynamic()) {
             return;
         }
         _value = value;
@@ -141,12 +148,12 @@ interface IDropDownHandler {
     var selectedIndex(get, set):Int;
     var selectedItem(get, set):Dynamic;
     function applyDefault():Void;
-    
+
 }
 
 class DropDownHandler implements IDropDownHandler {
     private var _dropdown:DropDown;
-    
+
     public function new(dropdown:DropDown) {
         _dropdown = dropdown;
     }
@@ -155,13 +162,13 @@ class DropDownHandler implements IDropDownHandler {
     private function get_component():Component {
         return null;
     }
-    
+
     public function prepare(wrapper:Box) {
     }
-    
+
     public function reset() {
     }
-    
+
     public var selectedIndex(get, set):Int;
     private function get_selectedIndex():Int {
         return -1;
@@ -169,7 +176,7 @@ class DropDownHandler implements IDropDownHandler {
     private function set_selectedIndex(value:Int):Int {
         return value;
     }
-    
+
     public var selectedItem(get, set):Dynamic;
     private function get_selectedItem():Dynamic {
         return null;
@@ -177,7 +184,7 @@ class DropDownHandler implements IDropDownHandler {
     private function set_selectedItem(value:Dynamic):Dynamic {
         return value;
     }
-    
+
     public function applyDefault() {
     }
 }
@@ -185,12 +192,12 @@ class DropDownHandler implements IDropDownHandler {
 @:access(haxe.ui.core.Component)
 class ListDropDownHandler extends DropDownHandler {
     private var _listview:ListView;
-    
+
     private override function get_component():Component {
         createListView();
         return _listview;
     }
-    
+
     public override function reset() {
         if (_listview != null) {
             _listview.dataSource = _dropdown.dataSource;
@@ -201,7 +208,7 @@ class ListDropDownHandler extends DropDownHandler {
             */
         }
     }
-    
+
     public override function prepare(wrapper:Box) {
         var itemCount = 4;
         if (_dropdown.dropdownSize != null) {
@@ -211,7 +218,10 @@ class ListDropDownHandler extends DropDownHandler {
             itemCount = _listview.dataSource.size;
         }
 
-        _listview.itemCount = itemCount; 
+        if (itemCount > 0) {
+            _listview.itemCount = itemCount;
+        }
+
         if (_dropdown.dropdownWidth == null) {
             wrapper.syncComponentValidation();
             _listview.width = _dropdown.width - (wrapper.layout.paddingLeft + wrapper.layout.paddingRight);
@@ -230,14 +240,14 @@ class ListDropDownHandler extends DropDownHandler {
                 selectedIndex = itemIndex;
             }
         }
-        
+
         //Screen.instance.addComponent(_listview);
         _listview.unregisterEvent(UIEvent.CHANGE, onListChange); // TODO: not great!
         _listview.selectedIndex = selectedIndex;
         _listview.syncComponentValidation();
         _listview.registerEvent(UIEvent.CHANGE, onListChange); // TODO: not great!
     }
-    
+
     private var _cachedSelectedIndex:Int = -1;
     private override function get_selectedIndex():Int{
         if (_listview == null) {
@@ -245,16 +255,20 @@ class ListDropDownHandler extends DropDownHandler {
         }
         return _listview.selectedIndex;
     }
-    
+
     private override function set_selectedIndex(value:Int):Int {
         if (_listview != null && _cachedSelectedIndex != value) {
             _cachedSelectedIndex = value;
             _listview.selectedIndex = value;
         } else if (_cachedSelectedIndex != value) {
             _cachedSelectedIndex = value;
-            _dropdown.dispatch(new UIEvent(UIEvent.CHANGE));
+            var data = null;
+            if (_dropdown.dataSource != null && value >= 0 && value < _dropdown.dataSource.size) {
+                data = _dropdown.dataSource.get(value);
+            }
+            _dropdown.dispatch(new UIEvent(UIEvent.CHANGE, false, data));
         }
-        
+
         if (_dropdown.dataSource != null && value >= 0 && value < _dropdown.dataSource.size) {
             var data = _dropdown.dataSource.get(value);
             var text = null;
@@ -268,11 +282,11 @@ class ListDropDownHandler extends DropDownHandler {
             }
             _dropdown.text = text;
         }
-        
+
         return value;
     }
-    
-    private function indexOfItem(text:String) {
+
+    private function indexOfItem(text:String):Int {
         var index = -1;
         if (_dropdown.dataSource != null) {
             for (i in 0..._dropdown.dataSource.size) {
@@ -282,9 +296,23 @@ class ListDropDownHandler extends DropDownHandler {
                 }
             }
         }
+        
+        if (index == -1 && _dropdown.dataSource != null) {
+            var info = BindingManager.instance.findLanguageBinding(_dropdown, "text");
+            if (info != null && info.script != null) {
+                text = info.script;
+                for (i in 0..._dropdown.dataSource.size) {
+                    var item:Dynamic = _dropdown.dataSource.get(i);
+                    if (item == text || item.value == text || item.text == text) {
+                        index = i;
+                    }
+                }
+            }
+        }
+        
         return index;
     }
-    
+
     private override function get_selectedItem():Dynamic {
         if (_listview == null) {
             if (_cachedSelectedIndex >= 0 && _cachedSelectedIndex < _dropdown.dataSource.size) {
@@ -296,15 +324,18 @@ class ListDropDownHandler extends DropDownHandler {
         }
         return _listview.selectedItem;
     }
-    
+
     private var _cachedSelectedItem:Dynamic = null;
     private override function set_selectedItem(value:Dynamic):Dynamic {
         var v:Variant = value;
-        var index = indexOfItem(v);
+        var index:Int = indexOfItem(v);
+        if (index == -1 && v.isNumber) {
+            index = v;
+        }
         selectedIndex = index;
         return value;
     }
-    
+
     private function createListView() {
         if (_listview == null) {
             _listview = new ListView();
@@ -312,7 +343,7 @@ class ListDropDownHandler extends DropDownHandler {
             _listview.dataSource = _dropdown.dataSource;
         }
     }
-    
+
     private function onListChange(event:UIEvent) {
         if (_listview.selectedItem == null) {
             return;
@@ -334,9 +365,10 @@ class ListDropDownHandler extends DropDownHandler {
         _dropdown.text = text;
         //_dropdown.selectedIndex = _listview.selectedIndex;
         cast(_dropdown._internalEvents, DropDownEvents).hideDropDown();
-        _dropdown.dispatch(new UIEvent(UIEvent.CHANGE));
+
+        _dropdown.dispatch(new UIEvent(UIEvent.CHANGE, false, selectedItem));
     }
-    
+
     public override function applyDefault() {
         var indexToSelect = 0;
         if (_cachedSelectedItem != null) {
@@ -352,18 +384,18 @@ class ListDropDownHandler extends DropDownHandler {
 
 @:access(haxe.ui.core.Component)
 class CalendarDropDownHandler extends DropDownHandler {
-	public static var DATE_FORMAT:String = "%d/%m/%Y";
-    
+    public static var DATE_FORMAT:String = "%d/%m/%Y";
+
     private var _calendar:CalendarView;
-    
+
     private override function get_component():Component {
         if (_calendar == null) {
             _calendar = new CalendarView();
             _calendar.registerEvent(UIEvent.CHANGE, onCalendarChange);
-        }    
+        }
         return _calendar;
     }
-    
+
     public override function prepare(wrapper:Box) {
         if (_dropdown.dropdownWidth != null) {
             _calendar.width = _dropdown.dropdownWidth;
@@ -371,17 +403,17 @@ class CalendarDropDownHandler extends DropDownHandler {
         if (_dropdown.dropdownHeight != null) {
             _calendar.height = _dropdown.dropdownHeight;
         }
-        
+
         if (_cachedSelectedDate != null) {
             _calendar.unregisterEvent(UIEvent.CHANGE, onCalendarChange); // TODO: not great!
             _calendar.selectedDate = _cachedSelectedDate;
             _calendar.registerEvent(UIEvent.CHANGE, onCalendarChange); // TODO: not great!
         }
-        
+
         //Screen.instance.addComponent(_calendar);
         _calendar.syncComponentValidation();
     }
-    
+
     private var _cachedSelectedDate:Date = null;
     private override function get_selectedItem():Dynamic {
         if (_calendar == null) {
@@ -389,7 +421,7 @@ class CalendarDropDownHandler extends DropDownHandler {
         }
         return _calendar.selectedDate;
     }
-    
+
     private override function set_selectedItem(value:Dynamic):Dynamic {
         if (value == null) {
             return value;
@@ -401,7 +433,7 @@ class CalendarDropDownHandler extends DropDownHandler {
         } else if (v.isDate) {
             date = v;
         }
-        
+
         if (_calendar != null && date != null) {
             if (date.toString() == _calendar.selectedDate.toString()) {
                 _dropdown.text = DateTools.format(date, DATE_FORMAT);
@@ -416,7 +448,7 @@ class CalendarDropDownHandler extends DropDownHandler {
         }
         return value;
     }
-    
+
     public function onCalendarChange(event:UIEvent) {
         if (_calendar.selectedDate == null) {
             return;
@@ -424,9 +456,9 @@ class CalendarDropDownHandler extends DropDownHandler {
         _cachedSelectedDate = _calendar.selectedDate;
         _dropdown.text = DateTools.format(_calendar.selectedDate, DATE_FORMAT);
         cast(_dropdown._internalEvents, DropDownEvents).hideDropDown();
-        _dropdown.dispatch(new UIEvent(UIEvent.CHANGE));
+        _dropdown.dispatch(new UIEvent(UIEvent.CHANGE, false, _calendar.selectedDate));
     }
-    
+
     public override function applyDefault() {
         var now = Date.now();
         _dropdown.selectedItem = now;
@@ -440,22 +472,22 @@ class CalendarDropDownHandler extends DropDownHandler {
 @:access(haxe.ui.core.Component)
 class DropDownEvents extends ButtonEvents {
     private var _dropdown:DropDown;
-    
+
     public function new(dropdown:DropDown) {
         super(dropdown);
         _dropdown = dropdown;
     }
-    
+
     public override function register() {
         super.register();
         registerEvent(MouseEvent.MOUSE_DOWN, onClick);
     }
-    
+
     public override function unregister() {
         super.unregister();
         unregisterEvent(MouseEvent.MOUSE_DOWN, onClick);
     }
-    
+
     private function onClick(event:MouseEvent) {
         _dropdown.selected = !_dropdown.selected;
         if (_dropdown.selected == true) {
@@ -464,27 +496,26 @@ class DropDownEvents extends ButtonEvents {
             hideDropDown();
         }
     }
-    
+
     private override function onMouseClick(event:MouseEvent) {
         // do nothing
     }
-    
+
     private var _overlay:Component = null;
     private var _wrapper:Box = null;
-    @:access(haxe.ui.core.Component)
     public function showDropDown() {
         var handler:IDropDownHandler = cast(_dropdown._compositeBuilder, DropDownBuilder).handler;
         if (handler == null) {
             return;
         }
-        
+
         if (_wrapper == null) {
             _wrapper = new Box();
             _wrapper.addClass("popup");
             _wrapper.addClass("dropdown-popup");
             _wrapper.styleNames = _dropdown.handlerStyleNames;
             _wrapper.addComponent(handler.component);
-            
+
             var filler = new Component();
             filler.horizontalAlign = "right";
             filler.includeInLayout = false;
@@ -492,7 +523,7 @@ class DropDownEvents extends ButtonEvents {
             filler.id = "dropdown-filler";
             _wrapper.addComponent(filler);
         }
-        
+
         var componentOffset = _dropdown.getComponentOffset();
 
         if (_dropdown.style.mode != null && _dropdown.style.mode == "mobile") {
@@ -514,7 +545,7 @@ class DropDownEvents extends ButtonEvents {
             Screen.instance.addComponent(_wrapper);
             handler.prepare(_wrapper);
             _wrapper.syncComponentValidation();
-            
+
             var cx = _wrapper.width - _dropdown.width;
             var filler:Component = _wrapper.findComponent("dropdown-filler", false);
             if (cx > 0 && filler != null) {
@@ -527,7 +558,7 @@ class DropDownEvents extends ButtonEvents {
                 filler.hidden = true;
                 _wrapper.removeClass("dropdown-popup-expanded");
             }
-            
+
             if (_wrapper.screenLeft + _wrapper.actualComponentWidth > Screen.instance.width) {
                 _wrapper.left = _wrapper.screenLeft - _wrapper.actualComponentWidth + _dropdown.actualComponentWidth;
             }
@@ -539,28 +570,27 @@ class DropDownEvents extends ButtonEvents {
         Screen.instance.registerEvent(MouseEvent.MOUSE_DOWN, onScreenMouseDown);
         Screen.instance.registerEvent(MouseEvent.RIGHT_MOUSE_DOWN, onScreenMouseDown);
     }
-    
+
     public function hideDropDown() {
         var handler:IDropDownHandler = cast(_dropdown._compositeBuilder, DropDownBuilder).handler;
         if (handler == null) {
             return;
         }
-        
+
         if (_overlay != null) {
             Screen.instance.removeComponent(_overlay);
             _overlay = null;
         }
-        
+
         _dropdown.selected = false;
-        
+
         if (_wrapper != null) {
             Screen.instance.removeComponent(_wrapper);
         }
         Screen.instance.unregisterEvent(MouseEvent.MOUSE_DOWN, onScreenMouseDown);
         Screen.instance.unregisterEvent(MouseEvent.RIGHT_MOUSE_DOWN, onScreenMouseDown);
     }
-    
-    @:access(haxe.ui.core.Component)
+
     private function onScreenMouseDown(event:MouseEvent) {
         var handler:IDropDownHandler = cast(_dropdown._compositeBuilder, DropDownBuilder).handler;
         if (handler.component.hitTest(event.screenX, event.screenY) == true) {
@@ -570,7 +600,7 @@ class DropDownEvents extends ButtonEvents {
         if (_dropdown.hitTest(event.screenX - componentOffset.x, event.screenY - componentOffset.y) == true) {
             return;
         }
-        
+
         hideDropDown();
     }
 
@@ -586,20 +616,20 @@ class DropDownEvents extends ButtonEvents {
 @:access(haxe.ui.core.Component)
 @:access(haxe.ui.components.DropDownEvents)
 class DropDownBuilder extends ButtonBuilder {
-    
+
     public static var HANDLER_MAP:Map<String, String> = new Map<String, String>();
-    
+
     private var _dropdown:DropDown;
     @:noCompletion private var _handler:IDropDownHandler;
 
     public function new(dropdown:DropDown) {
         super(dropdown);
         _dropdown = dropdown;
-        
+
         HANDLER_MAP.set("list", Type.getClassName(ListDropDownHandler));
         HANDLER_MAP.set("date", Type.getClassName(CalendarDropDownHandler));
     }
-    
+
     public var handler(get, null):IDropDownHandler;
     private function get_handler():IDropDownHandler {
         if (_handler == null) {
@@ -609,7 +639,7 @@ class DropDownBuilder extends ButtonBuilder {
             }
             _handler = Type.createInstance(Type.resolveClass(handlerClass), [_dropdown]);
         }
-        
+
         return _handler;
     }
 
@@ -619,16 +649,24 @@ class DropDownBuilder extends ButtonBuilder {
             handler.applyDefault();
         }
     }
-    
+
     public override function create() {
         _dropdown.toggle = true;
     }
-    
+
     public override function destroy() {
         var events:DropDownEvents = cast(_dropdown._internalEvents, DropDownEvents);
         events.hideDropDown();
         if (_handler != null && _handler.component != null) {
             _handler.component.destroyComponent();
+        }
+    }
+
+    @:access(haxe.ui.core.Screen)
+    public function onThemeChanged() {
+        if (_handler != null) {
+            Screen.instance.invalidateChildren(_handler.component);
+            Screen.instance.onThemeChangedChildren(_handler.component);
         }
     }
 }

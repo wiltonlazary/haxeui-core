@@ -34,6 +34,8 @@ class ComponentInfo {
 
     public var condition:String;
 
+    public var resolvedClassName:String;
+
     public function new() {
         properties = new Map<String, String>();
         children = [];
@@ -80,7 +82,7 @@ class ComponentInfo {
                 }
             }
         }
-        
+
         for (propName in propsToRemove) {
             properties.remove(propName);
         }

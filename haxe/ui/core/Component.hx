@@ -1,8 +1,8 @@
 package haxe.ui.core;
 
 import haxe.ui.backend.ComponentImpl;
-import haxe.ui.behaviours.DefaultBehaviour;
-import haxe.ui.debug.CallStackHelper;
+import haxe.ui.binding.BindingManager;
+import haxe.ui.dragdrop.DragManager;
 import haxe.ui.events.AnimationEvent;
 import haxe.ui.events.MouseEvent;
 import haxe.ui.events.UIEvent;
@@ -23,6 +23,12 @@ import haxe.ui.util.MathUtil;
 import haxe.ui.util.StringUtil;
 import haxe.ui.validation.IValidating;
 import haxe.ui.validation.ValidationManager;
+
+#if (haxe_ver >= 4.2)
+import Std.isOfType;
+#else
+import Std.is as isOfType;
+#end
 
 /**
  Base class of all HaxeUI controls
@@ -52,7 +58,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
                 break;
             }
             c = Type.getSuperClass(c);
-        }        
+        }
 
         // we dont want to actually apply the classes, just find out if native is there or not
         //TODO - we could include the initialization in the validate method
@@ -63,7 +69,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         } else {
             create();
         }
-        
+
     }
 
     //***********************************************************************************************************
@@ -83,7 +89,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         if (native == false || native == null) {
             if (_compositeBuilderClass != null) {
                 if (_compositeBuilder == null) {
-                   _compositeBuilder = Type.createInstance(_compositeBuilderClass, [this]); 
+                    _compositeBuilder = Type.createInstance(_compositeBuilderClass, [this]);
                 }
                 _compositeBuilder.create();
             }
@@ -95,7 +101,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
             var builderClass = getNativeConfigProperty(".builder.@class");
             if (builderClass != null) { // TODO: maybe _compositeBuilder isnt the best name if native components can use them
                 if (_compositeBuilder == null) {
-                   _compositeBuilder = Type.createInstance(Type.resolveClass(builderClass), [this]); 
+                    _compositeBuilder = Type.createInstance(Type.resolveClass(builderClass), [this]);
                 }
                 _compositeBuilder.create();
             }
@@ -107,10 +113,10 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
     private var _compositeBuilder:CompositeBuilder;
     private function registerComposite() {
     }
-    
+
     private function createDefaults() {
     }
-    
+
     private function createChildren() {
 
     }
@@ -145,7 +151,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
 
         return l;
     }
-    
+
     // TODO: these functions should be removed and components should use behaviours.get/set/call/defaults direction
     //private var _behaviourUpdateOrder:Array<String> = [];
 
@@ -196,7 +202,9 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
     public var animatable(get, set):Bool;
     private function get_animatable():Bool {
         #if !actuate
-            return false;
+
+        return false;
+
         #end
         return _animatable;
     }
@@ -241,7 +249,6 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
     //***********************************************************************************************************
     // General
     //***********************************************************************************************************
-    
 
     /**
      Reference to the `Screen` object this component is displayed on
@@ -249,6 +256,33 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
     public var screen(get, null):Screen;
     private function get_screen():Screen {
         return Toolkit.screen;
+    }
+
+    //***********************************************************************************************************
+    // Drag & Drop
+    //***********************************************************************************************************
+    public var draggable(get, set):Bool;
+    private function get_draggable():Bool {
+        return DragManager.instance.isRegisteredDraggable(this);
+    }
+    private function set_draggable(value:Bool):Bool {
+        if (value == true) {
+            DragManager.instance.registerDraggable(this, { mouseTarget: _dragInitiator } );
+        } else {
+            DragManager.instance.unregisterDraggable(this);
+        }
+        return value;
+    }
+
+    private var _dragInitiator:Component = null;
+    public var dragInitiator(get, set):Component;
+    private function get_dragInitiator():Component {
+        return _dragInitiator;
+    }
+    private function set_dragInitiator(value:Component):Component {
+        _dragInitiator = value;
+        draggable = true;
+        return value;
     }
 
     //***********************************************************************************************************
@@ -294,7 +328,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
                 return v;
             }
         }
-        
+
         if (this.native == true) {
             var allowChildren:Bool = getNativeConfigPropertyBool('.@allowChildren', true);
             if (allowChildren == false) {
@@ -320,11 +354,14 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         if (disabled) {
             child.disabled = true;
         }
-        
+
         if (_compositeBuilder != null) {
             _compositeBuilder.onComponentAdded(child);
         }
+
         onComponentAdded(child);
+        dispatch(new UIEvent(UIEvent.COMPONENT_ADDED));
+
         return child;
     }
 
@@ -339,7 +376,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
                 return v;
             }
         }
-        
+
         if (this.native == true) {
             var allowChildren:Bool = getNativeConfigPropertyBool('.@allowChildren', true);
             if (allowChildren == false) {
@@ -365,17 +402,20 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         if (disabled) {
             child.disabled = true;
         }
-        
+
         if (_compositeBuilder != null) {
             _compositeBuilder.onComponentAdded(child);
         }
+
         onComponentAdded(child);
+        dispatch(new UIEvent(UIEvent.COMPONENT_ADDED));
+
         return child;
     }
 
     private function onComponentAdded(child:Component) {
     }
-    
+
     /**
      Removes the specified child component from this component instance
     **/
@@ -384,14 +424,14 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         if (child == null) {
             return null;
         }
-        
+
         if (_compositeBuilder != null) {
             var v = _compositeBuilder.removeComponent(child, dispose, invalidate);
             if (v != null) {
                 return v;
             }
         }
-        
+
         if (_children != null) {
             if (_children.remove(child)) {
                 child.parentComponent = null;
@@ -413,8 +453,10 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         if (_compositeBuilder != null) {
             _compositeBuilder.onComponentRemoved(child);
         }
+
         onComponentRemoved(child);
-        
+        dispatch(new UIEvent(UIEvent.COMPONENT_REMOVED));
+
         return child;
     }
 
@@ -426,7 +468,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         if (_children == null) {
             return null;
         }
-        
+
         var childCount:Int = _children.length;
         if (_compositeBuilder != null) {
             var compositeChildCount = _compositeBuilder.numComponents;
@@ -434,18 +476,18 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
                 childCount = compositeChildCount;
             }
         }
-        
+
         if (index < 0 || index > childCount - 1) {
             return null;
         }
-        
+
         if (_compositeBuilder != null) {
             var v = _compositeBuilder.removeComponentAt(index, dispose, invalidate);
             if (v != null) {
                 return v;
             }
         }
-        
+
         handleRemoveComponentAt(index, dispose);
         var child = _children[index];
         if (_children != null) {
@@ -467,14 +509,16 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         if (_compositeBuilder != null) {
             _compositeBuilder.onComponentRemoved(child);
         }
+
         onComponentRemoved(child);
-        
+        dispatch(new UIEvent(UIEvent.COMPONENT_REMOVED));
+
         return child;
     }
 
     private function onComponentRemoved(child:Component) {
     }
-    
+
     private function assignPositionClasses(invalidate:Bool = true) {
         for (i in 0...childComponents.length) {
             var c = childComponents[i];
@@ -487,16 +531,20 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
             }
         }
     }
-    
+
     private function destroyComponent() {
         if (_compositeBuilder != null) {
             _compositeBuilder.destroy();
         }
+        BindingManager.instance.remove(this);
         onDestroy();
     }
-    
-    private function onDestroy() {
 
+    private function onDestroy() {
+        for (child in childComponents) {
+            child.onDestroy();
+        }
+        dispatch(new UIEvent(UIEvent.DESTROY));
     }
 
     /**
@@ -506,26 +554,26 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         if (callback(this) == false) {
             return;
         }
-        
+
         for (child in childComponents) {
             if (callback(child) == false) {
                 return;
             }
         }
-        
+
         for (child in childComponents) {
             var cont = true;
             child.walkComponents(function(c) {
                 cont = callback(c);
                 return cont;
             });
-            
+
             if (cont == false) {
                 break;
             }
         }
     }
-    
+
     /**
      Removes all child components from this component instance
     **/
@@ -544,11 +592,11 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         if (criteria != null) {
             return searchType == "id" && id == criteria || searchType == "css" && hasClass(criteria) == true;
         } else if (type != null) {
-            return Std.is(this, type) == true;
+            return isOfType(this, type) == true;
         }
-	   return false;
+        return false;
     }
-    
+
     /**
      Finds a specific child in this components display tree (recusively if desired) and can optionally cast the result
 
@@ -586,7 +634,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
                 }
             }
             if (match == null && _compositeBuilder != null) {
-                match = _compositeBuilder.findComponent(criteria, type,recursive, searchType);
+                match = _compositeBuilder.findComponent(criteria, type, recursive, searchType);
             }
         }
 
@@ -600,19 +648,19 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         if (maxDepth <= 0) {
             return [];
         }
-        
+
         maxDepth--;
-        
+
         var r:Array<T> = [];
         for (child in childComponents) {
             var match = true;
             if (styleName != null && child.hasClass(styleName) == false) {
                 match = false;
             }
-            if (type != null && Std.is(child, type) == false) {
+            if (type != null && isOfType(child, type) == false) {
                 match = false;
             }
-            
+
             if (match == true) {
                 r.push(cast child);
             } else {
@@ -624,7 +672,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         }
         return r;
     }
-    
+
     /**
      Finds a specific parent in this components display tree and can optionally cast the result
 
@@ -652,26 +700,26 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         }
         return cast match;
     }
-    
+
     public function findComponentsUnderPoint<T:Component>(screenX:Float, screenY:Float, type:Class<T> = null):Array<Component> {
         var c:Array<Component> = [];
         if (hitTest(screenX, screenY)) {
             for (child in childComponents) {
                 if (child.hitTest(screenX, screenY)) {
                     var match = true;
-                    if (type != null && Std.is(child, type) == false) {
+                    if (type != null && isOfType(child, type) == false) {
                         match = false;
                     }
                     if (match == true) {
                         c.push(child);
                     }
+                    c = c.concat(child.findComponentsUnderPoint(screenX, screenY, type));
                 }
-                c = c.concat(child.findComponentsUnderPoint(screenX, screenY));
             }
         }
         return c;
     }
-    
+
     /**
      Gets the index of a child component
     **/
@@ -683,7 +731,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
                 return index;
             }
         }
-        
+
         var index:Int = -1;
         if (_children != null && child != null) {
             index = _children.indexOf(child);
@@ -698,7 +746,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
                 return v;
             }
         }
-        
+
         if (index >= 0 && index <= _children.length && child.parentComponent == this) {
             handleSetComponentIndex(child, index);
             _children.remove(child);
@@ -736,18 +784,41 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
                 return;
             }
         }
-        
+
         if (_hidden == false) {
             handleVisibility(false);
             _hidden = true;
             if (parentComponent != null) {
                 parentComponent.invalidateComponentLayout();
             }
-            
+
             dispatchRecursively(new UIEvent(UIEvent.HIDDEN));
         }
     }
 
+    private function hideInternal(dispatchChildren:Bool = false) {
+        if (_compositeBuilder != null) {
+            var v = _compositeBuilder.hide();
+            if (v == true) {
+                return;
+            }
+        }
+
+        if (_hidden == false) {
+            handleVisibility(false);
+            _hidden = true;
+            if (parentComponent != null) {
+                parentComponent.invalidateComponentLayout();
+            }
+
+            if (dispatchChildren == true) {
+                dispatchRecursively(new UIEvent(UIEvent.HIDDEN));
+            } else {
+                dispatch(new UIEvent(UIEvent.HIDDEN));
+            }
+        }
+    }
+    
     /**
      Shows this component and all its children
     **/
@@ -759,7 +830,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
                 return;
             }
         }
-        
+
         if (_hidden == true) {
             handleVisibility(true);
             _hidden = false;
@@ -767,11 +838,35 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
             if (parentComponent != null) {
                 parentComponent.invalidateComponentLayout();
             }
-            
+
             dispatchRecursively(new UIEvent(UIEvent.SHOWN));
         }
     }
 
+    private function showInternal(dispatchChildren:Bool = false) {
+        if (_compositeBuilder != null) {
+            var v = _compositeBuilder.show();
+            if (v == true) {
+                return;
+            }
+        }
+
+        if (_hidden == true) {
+            handleVisibility(true);
+            _hidden = false;
+            invalidateComponentLayout();
+            if (parentComponent != null) {
+                parentComponent.invalidateComponentLayout();
+            }
+
+            if (dispatchChildren == true) {
+                dispatchRecursively(new UIEvent(UIEvent.SHOWN));
+            } else {
+                dispatch(new UIEvent(UIEvent.SHOWN));
+            }
+        }
+    }
+    
     public function fadeIn(onEnd:Void->Void = null, show:Bool = true) {
         if (onEnd != null || show == true) {
             var prevStart = onAnimationStart;
@@ -783,7 +878,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
                     onAnimationStart = prevStart;
                 }
             }
-            
+
             onAnimationEnd = function(e) {
                 if (onEnd != null) {
                     onEnd();
@@ -794,7 +889,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         }
         swapClass("fade-in", "fade-out");
     }
-    
+
     public function fadeOut(onEnd:Void->Void = null, hide:Bool = true) {
         if (onEnd != null || hide == true) {
             var prevEnd = onAnimationEnd;
@@ -811,7 +906,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         }
         swapClass("fade-out", "fade-in");
     }
-    
+
     private var _hidden:Bool = false;
     /**
      Whether this component is hidden or not
@@ -847,9 +942,10 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
     **/
     @:dox(group = "Style related properties and methods")
     public var customStyle(default, set):Style = {};
-    function set_customStyle(v:Style) {
-        if(v != customStyle) 
+    function set_customStyle(v:Style):Style {
+        if (v != customStyle) {
             invalidateComponentStyle();
+        }
         return customStyle = v;
     }
     @:dox(group = "Style related properties and methods")
@@ -866,12 +962,12 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
                 invalidateComponentStyle();
             }
         }
-		
-		if (recursive == true) {
-			for (child in childComponents) {
-				child.addClass(name, invalidate, recursive);
-			}
-		}
+
+        if (recursive == true) {
+            for (child in childComponents) {
+                child.addClass(name, invalidate, recursive);
+            }
+        }
     }
 
     /**
@@ -888,16 +984,16 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
                 }
             }
         }
-		
+
         if (needsInvalidate == true) {
             invalidateComponentStyle();
         }
-        
-		if (recursive == true) {
-			for (child in childComponents) {
-				child.addClasses(names, invalidate, recursive);
-			}
-		}
+
+        if (recursive == true) {
+            for (child in childComponents) {
+                child.addClasses(names, invalidate, recursive);
+            }
+        }
     }
 
     /**
@@ -912,11 +1008,11 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
             }
         }
 
-		if (recursive == true) {
-			for (child in childComponents) {
-				child.removeClass(name, invalidate, recursive);
-			}
-		}
+        if (recursive == true) {
+            for (child in childComponents) {
+                child.removeClass(name, invalidate, recursive);
+            }
+        }
     }
 
     /**
@@ -937,14 +1033,14 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         if (needsInvalidate == true) {
             invalidateComponentStyle();
         }
-        
-		if (recursive == true) {
-			for (child in childComponents) {
-				child.removeClasses(names, invalidate, recursive);
-			}
-		}
+
+        if (recursive == true) {
+            for (child in childComponents) {
+                child.removeClasses(names, invalidate, recursive);
+            }
+        }
     }
-    
+
     /**
      Whether or not this component has a css class associated with it
     **/
@@ -963,23 +1059,23 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
             classes.push(classToAdd);
             needsInvalidate = true;
         }
-		
+
         if (classToRemove != null && classes.indexOf(classToRemove) != -1) {
             classes.remove(classToRemove);
             needsInvalidate = true;
         }
-        
+
         if (invalidate == true && needsInvalidate == true) {
             invalidateComponentStyle();
         }
-        
-		if (recursive == true) {
-			for (child in childComponents) {
-				child.swapClass(classToAdd, classToRemove, invalidate, recursive);
-			}
-		}
+
+        if (recursive == true) {
+            for (child in childComponents) {
+                child.swapClass(classToAdd, classToRemove, invalidate, recursive);
+            }
+        }
     }
-    
+
     /**
      A string representation of the css classes associated with this component
     **/
@@ -1022,13 +1118,13 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         cssString = "_ { " + cssString + "}";
         var s = new Parser().parse(cssString);
         customStyle.mergeDirectives(s.rules[0].directives);
-        
+
         _styleString = value;
         invalidateComponentStyle();
         return value;
     }
 
-    // were going to cache the ref (which may be null) so we dont have to 
+    // were going to cache the ref (which may be null) so we dont have to
     // perform a parent based lookup each for a performance tweak
     private var _useCachedStyleSheetRef:Bool = false;
     private var _cachedStyleSheetRef:StyleSheet = null;
@@ -1038,7 +1134,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         if (_useCachedStyleSheetRef == true) {
             return _cachedStyleSheetRef;
         }
-        
+
         var s = null;
         var ref = this;
         while (ref != null) {
@@ -1048,10 +1144,10 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
             }
             ref = ref.parentComponent;
         }
-        
+
         _useCachedStyleSheetRef = true;
         _cachedStyleSheetRef = s;
-        
+
         return s;
     }
     private function set_styleSheet(value:StyleSheet):StyleSheet {
@@ -1066,7 +1162,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
             c.resetCachedStyleSheetRef();
         }
     }
-    
+
     //***********************************************************************************************************
     // Layout related
     //***********************************************************************************************************
@@ -1172,17 +1268,18 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
 
             invalidateComponent();
 
+            behaviours.ready();
             behaviours.update();
             Toolkit.callLater(function() {
                 invalidateComponentData();
                 invalidateComponentStyle();
-                
+
                 if (_compositeBuilder != null) {
                     _compositeBuilder.onReady();
                 }
-                
+
                 onReady();
-                
+
                 dispatch(new UIEvent(UIEvent.READY));
             });
         }
@@ -1190,7 +1287,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
 
     private function onReady() {
     }
-    
+
     private function onInitialize() {
 
     }
@@ -1210,10 +1307,12 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
     @:style                 public var color:Null<Color>;
     #end
     @:style                 public var backgroundColor:Null<Color>;
+    @:style                 public var backgroundImage:String;
     @:style                 public var borderColor:Null<Color>;
     @:style                 public var borderSize:Null<Float>;
     @:style                 public var borderRadius:Null<Float>;
 
+    @:style                 public var padding:Null<Float>;
     @:style                 public var paddingLeft:Null<Float>;
     @:style                 public var paddingRight:Null<Float>;
     @:style                 public var paddingTop:Null<Float>;
@@ -1229,7 +1328,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
 
     @:style(layoutparent)   public var horizontalAlign:String;
     @:style(layoutparent)   public var verticalAlign:String;
-    
+
     //***********************************************************************************************************
     // Script related
     //***********************************************************************************************************
@@ -1260,9 +1359,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
     **/
     @:dox(group = "Script related properties and methods")
     public function executeScriptCall(expr:String, variables:Map<String, Any> = null) {
-        #if allow_script_errors
         try {
-        #end
             var parser = new hscript.Parser();
             var line = parser.parseString(expr);
             var interp:ScriptInterp = findScriptInterp();
@@ -1279,14 +1376,11 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
                     interp.variables.remove(k);
                 }
             }
-        #if allow_script_errors
         } catch (e:Dynamic) {
+            #if !allow_script_errors
             trace("Problem executing scriptlet: " + e);
-            #if debug
-                CallStackHelper.traceExceptionStack();
             #end
         }
-        #end
     }
 
     private function findScriptInterp(refreshNamedComponents:Bool = true):ScriptInterp {
@@ -1339,18 +1433,17 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
                 #else
                 trace("Problem initializing script: " + e);
                 #end
-                CallStackHelper.traceExceptionStack();
             }
         }
     }
 
     private var _scriptEvents:Map<String, String>;
-    
+
     public var scriptEvents(get, null):Map<String, String>;
     private function get_scriptEvents():Map<String, String> {
         return _scriptEvents;
     }
-    
+
     /**
      Registers a piece of hscript to be execute when a certain `UIEvent` is fired
     **/
@@ -1404,17 +1497,17 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
 
     @:event(AnimationEvent.START)       public var onAnimationStart:AnimationEvent->Void;
     @:event(AnimationEvent.END)         public var onAnimationEnd:AnimationEvent->Void;
-    
+
     /**
      Utility property to add a single `MouseEvent.CLICK` event
     **/
     @:event(MouseEvent.CLICK)           public var onClick:MouseEvent->Void;
-    
+
     /**
      Utility property to add a single `MouseEvent.RIGHT_CLICK` event
     **/
     @:event(MouseEvent.RIGHT_CLICK)     public var onRightClick:MouseEvent->Void;
-    
+
     /**
      Utility property to add a single `UIEvent.CHANGE` event
     **/
@@ -1441,7 +1534,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
             }
         }
     }
-    
+
     private override function initializeComponent() {
         if (_isInitialized == true) {
             return;
@@ -1450,7 +1543,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         if (_compositeBuilder != null) {
             _compositeBuilder.onInitialize();
         }
-        
+
         onInitialize();
 
         if (_layout == null) {
@@ -1476,7 +1569,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
                     _initialSizeApplied = true;
                 }
             }
-            
+
             if ((_style.initialHeight != null || _style.initialPercentHeight != null) && (height <= 0 && percentHeight == null)) {
                 if (_style.initialHeight != null) {
                     height = _style.initialHeight;
@@ -1488,7 +1581,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
             }
         }
     }
-    
+
     /**
      Return true if the size has changed.
     **/
@@ -1496,7 +1589,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         layout.refresh();
 
         //TODO - Required. Something is wrong with the autosize order in the first place if we need to do that twice. Revision required for performance.
-        while(validateComponentAutoSize()) {
+        while (validateComponentAutoSize()) {
             layout.refresh();
         }
 
@@ -1504,6 +1597,8 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         if (_componentWidth != _actualWidth || _componentHeight != _actualHeight) {
             _actualWidth = _componentWidth;
             _actualHeight = _componentHeight;
+            
+            enforceSizeConstraints();
 
             if (parentComponent != null) {
                 parentComponent.invalidateComponentLayout();
@@ -1514,12 +1609,70 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
 
             sizeChanged = true;
         }
-        
+
         if (_compositeBuilder != null) {
             sizeChanged = _compositeBuilder.validateComponentLayout() || sizeChanged;
         }
-        
+
         return sizeChanged;
+    }
+
+    private function enforceSizeConstraints() {
+        if (style != null) {
+            // enforce min width
+            if (style.minWidth != null && _componentWidth < style.minWidth) {
+                _componentWidth = _actualWidth = _width = style.minWidth;
+            }
+            
+            // enforce max width
+            if (style.maxWidth != null && style.maxPercentWidth == null && _componentWidth > style.maxWidth) {
+                _componentWidth = _actualWidth = _width = style.maxWidth;
+            } else if (style.maxWidth == null && style.maxPercentWidth != null) {
+                var p = this;
+                var max:Float = 0;
+                while (p != null) {
+                    if (p.style != null && p.style.maxPercentWidth == null) {
+                        max += p.width;
+                        break;
+                    }
+                    if (p.style != null && p != this) {
+                        max -= (p.style.paddingLeft + p.style.paddingRight);
+                    }
+                    p = p.parentComponent;
+                }
+                max = (max * style.maxPercentWidth) / 100;
+                if (max > 0 && _componentWidth > max) {
+                    _componentWidth = _actualWidth = _width = max;
+                }
+            }
+            
+            // enforce min height
+            if (style.minHeight != null && _componentHeight < style.minHeight) {
+                _componentHeight = _actualHeight = _height = style.minHeight;
+            }
+            
+            // enforce max height
+            if (style.maxHeight != null && style.maxPercentHeight == null && _componentHeight > style.maxHeight) {
+                _componentHeight = _actualHeight = _height = style.maxHeight;
+            } else if (style.maxHeight == null && style.maxPercentHeight != null) {
+                var p = this;
+                var max:Float = 0;
+                while (p != null) {
+                    if (p.style != null && p.style.maxPercentHeight == null) {
+                        max += p.height;
+                        break;
+                    }
+                    if (p.style != null && p != this) {
+                        max -= (p.style.paddingTop + p.style.paddingBottom);
+                    }
+                    p = p.parentComponent;
+                }
+                max = (max * style.maxPercentHeight) / 100;
+                if (max > 0 && _componentHeight > max) {
+                    _componentHeight = _actualHeight = _height = max;
+                }
+            }
+        }
     }
 
     private override function validateComponentStyle() {
@@ -1531,12 +1684,12 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         s.apply(customStyle);
 
         if (_style == null || _style.equalTo(s) == false) { // lets not update if nothing has changed
-            
+
             var marginsChanged = false;
             if (parentComponent != null && _style != null) {
                 marginsChanged = _style.marginLeft != s.marginLeft || _style.marginRight != s.marginRight ||  _style.marginTop != s.marginTop ||  _style.marginBottom != s.marginBottom;
             }
-            
+
             _style = s;
             applyStyle(s);
             if (marginsChanged == true) {
@@ -1559,7 +1712,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         }
 
         handleSize(componentWidth, componentHeight, _style);
-        
+
         if (_componentClipRect != null ||
             (style != null && style.clip != null && style.clip == true)) {
             handleClipRect(_componentClipRect != null ? _componentClipRect : new Rectangle(0, 0, componentWidth, componentHeight));
@@ -1603,7 +1756,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
                     _initialSizeApplied = true;
                 }
             }
-            
+
             if ((style.initialHeight != null || style.initialPercentHeight != null) && (height <= 0 && percentHeight == null)) {
                 if (style.initialHeight != null) {
                     height = style.initialHeight;
@@ -1614,14 +1767,14 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
                 }
             }
         }
-        
+
         if (style.left != null) {
             left = style.left;
         }
         if (style.top != null) {
             top = style.top;
         }
-        
+
         if (style.percentWidth != null) {
             percentWidth = style.percentWidth;
         }
@@ -1681,7 +1834,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
             }
             handleFrameworkProperty("allowMouseInteraction", false);
         }
-        
+
         /*
         if (style.clip != null) {
             clipContent = style.clip;
@@ -1703,7 +1856,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
             native = false;
         }
         */
-        
+
         if (_compositeBuilder != null) {
             _compositeBuilder.applyStyle(style);
         }
@@ -1712,24 +1865,24 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
     private function onPointerEventsMouseOver(e:MouseEvent) {
         addClass(":hover", true, true);
     }
-    
+
     private function onPointerEventsMouseOut(e:MouseEvent) {
         removeClass(":hover", true, true);
     }
-    
+
     private function onPointerEventsMouseDown(e:MouseEvent) {
         addClass(":down", true, true);
     }
-    
+
     private function onPointerEventsMouseUp(e:MouseEvent) {
         removeClass(":down", true, true);
     }
-    
+
     //***********************************************************************************************************
     // Animation
     //***********************************************************************************************************
 
-    private function applyAnimationKeyFrame(animationKeyFrames:AnimationKeyFrames, options:AnimationOptions):Void {
+    private function applyAnimationKeyFrame(animationKeyFrames:AnimationKeyFrames, options:AnimationOptions) {
         if (_animatable == false || options == null || options.duration == 0 ||
             (_componentAnimation != null && _componentAnimation.name == animationKeyFrames.id && options.compareToAnimation(_componentAnimation) == true)) {
             return;
@@ -1772,7 +1925,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
             c.customStyle.apply(customStyle);
         }
     }
-    
+
     //***********************************************************************************************************
     // Properties
     //***********************************************************************************************************
@@ -1788,4 +1941,3 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         return cssName;
     }
 }
-
