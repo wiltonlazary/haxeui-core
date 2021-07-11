@@ -89,4 +89,13 @@ class CompositeBuilder {
         }
         return null;
     }
+    
+    public function findComponents<T:Component>(styleName:String = null, type:Class<T> = null, maxDepth:Int = 5):Array<T> {
+        return null;
+    }
+    
+    public var isComponentClipped(get, null):Bool;
+    private function get_isComponentClipped():Bool {
+        return (_component.componentClipRect != null);
+    }
 }

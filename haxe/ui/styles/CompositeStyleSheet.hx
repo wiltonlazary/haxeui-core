@@ -30,6 +30,39 @@ class CompositeStyleSheet {
         return _animations;
     }
 
+    public function findAnimation(id:String) {
+        for (a in animations) {
+            if (a.id == id) {
+                return a;
+            }
+        }
+        
+        return null;
+    }
+    
+    public var hasMediaQueries(get, null):Bool;
+    private function get_hasMediaQueries():Bool {
+        for (styleSheet in _styleSheets) {
+            if (styleSheet.hasMediaQueries == true) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    public function getAnimation(id:String, create:Bool = true):AnimationKeyFrames {
+        var a = findAnimation(id);
+        if (a == null) {
+            a = new AnimationKeyFrames(id, []);
+            addAnimation(a);
+        }
+        return a;
+    }
+    
+    public function addAnimation(animation:AnimationKeyFrames) {
+        _styleSheets[0].addAnimation(animation);
+    }
+    
     public function addStyleSheet(styleSheet:StyleSheet) {
         _styleSheets.push(styleSheet);
     }

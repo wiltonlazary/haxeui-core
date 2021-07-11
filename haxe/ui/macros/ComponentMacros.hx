@@ -53,7 +53,7 @@ class ComponentMacros {
         var superClass:String = builder.superClass.t.toString();
         var rootType = ComponentClassMap.get(c.type);
         if (superClass != rootType) {
-            Context.warning("The super class of '" + builder.name + "' does not match the root node of '" + resourcePath + "' (" + superClass + " != " + rootType + ") - this may have unintended consequences", pos);
+            //Context.warning("The super class of '" + builder.name + "' does not match the root node of '" + resourcePath + "' (" + superClass + " != " + rootType + ") - this may have unintended consequences", pos);
         }
 
         for (id in namedComponents.keys()) {
@@ -343,7 +343,7 @@ class ComponentMacros {
         for (propName in properties.keys()) {
             var propValue = properties.get(propName);
             propName = ComponentFieldMap.mapField(propName);
-            var propExpr = macro $v{TypeConverter.convert(propValue)};
+            var propExpr = macro $v{TypeConverter.convertFrom(propValue)};
 
             if (StringTools.startsWith(propName, "on")) {
                 builder.add(macro $i{varName}.addScriptEvent($v{propName}, $propExpr));

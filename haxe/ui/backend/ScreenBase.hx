@@ -1,10 +1,11 @@
 package haxe.ui.backend;
 
+import haxe.ui.Toolkit;
 import haxe.ui.core.Component;
 import haxe.ui.events.UIEvent;
+import haxe.ui.validation.InvalidationFlags;
 
 class ScreenBase {
-    private var _topLevelComponents:Array<Component> = [];
     public var rootComponents:Array<Component>;
 
     private var _focus:Component = null;
@@ -50,6 +51,16 @@ class ScreenBase {
         return 0;
     }
 
+    public var actualWidth(get, null):Float;
+    private function get_actualWidth():Float {
+        return width * Toolkit.scaleX;
+    }
+
+    public var actualHeight(get, null):Float;
+    private function get_actualHeight():Float {
+        return height * Toolkit.scaleY;
+    }
+    
     public var isRetina(get, null):Bool;
     private function get_isRetina():Bool {
         return false;
@@ -67,12 +78,55 @@ class ScreenBase {
     }
 
     private function resizeComponent(c:Component) {
+        var cx:Null<Float> = null;
+        var cy:Null<Float> = null;
+
         if (c.percentWidth > 0) {
-            c.width = (this.width * c.percentWidth) / 100;
+            cx = (this.width * c.percentWidth) / 100;
         }
         if (c.percentHeight > 0) {
-            c.height = (this.height * c.percentHeight) / 100;
+            cy = (this.height * c.percentHeight) / 100;
         }
+        c.resizeComponent(cx, cy);
+    }
+
+    public function refreshStyleRootComponents() {
+        for (component in rootComponents) {
+            _refreshStyleComponent(component);
+        }
+    }
+
+    public function resizeRootComponents() {
+        for (component in rootComponents) {
+            resizeComponent(component);
+        }
+    }
+
+    @:access(haxe.ui.core.Component)
+    private function _refreshStyleComponent(component:Component) {
+        for (child in component.childComponents) {
+//            child.applyStyle(child.style);
+            child.invalidateComponentStyle();
+            child.invalidateComponentDisplay();
+            _refreshStyleComponent(child);
+        }
+    }
+
+    private function _onRootComponentResize(e:UIEvent) {
+        _refreshStyleComponent(e.target);
+    }
+
+    public function invalidateAll(flag:String = InvalidationFlags.ALL) {
+        for (c in rootComponents) {
+            invalidateChildren(c, flag);
+        }
+    }
+
+    private function invalidateChildren(c:Component, flag:String = InvalidationFlags.ALL) {
+        for (child in c.childComponents) {
+            invalidateChildren(child, flag);
+        }
+        c.invalidateComponent(flag);
     }
 
     //***********************************************************************************************************

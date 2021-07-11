@@ -5,6 +5,7 @@ import haxe.ui.behaviours.DefaultBehaviour;
 import haxe.ui.binding.BindingManager;
 import haxe.ui.components.Button;
 import haxe.ui.containers.HBox;
+import haxe.ui.containers.menus.Menu;
 import haxe.ui.containers.menus.Menu.MenuEvent;
 import haxe.ui.containers.menus.Menu.MenuEvents;
 import haxe.ui.core.Component;
@@ -12,6 +13,13 @@ import haxe.ui.core.CompositeBuilder;
 import haxe.ui.core.Screen;
 import haxe.ui.events.Events;
 import haxe.ui.events.MouseEvent;
+import haxe.ui.events.UIEvent;
+
+#if (haxe_ver >= 4.2)
+import Std.isOfType;
+#else
+import Std.is as isOfType;
+#end
 
 @:composite(Events, Builder)
 class MenuBar extends HBox {
@@ -136,6 +144,11 @@ private class Events extends haxe.ui.events.Events {
             }
         }
         
+        cast(menu._internalEvents, MenuEvents).button = target;
+        if (menu.hasEvent(UIEvent.CLOSE, onMenuClose) == false) {
+            menu.registerEvent(UIEvent.CLOSE, onMenuClose);
+        }
+
         var rtl = false;
         if (hasChildren == true) {
             var componentOffset = target.getComponentOffset();
@@ -159,7 +172,7 @@ private class Events extends haxe.ui.events.Events {
             Screen.instance.addComponent(menu);
             menu.syncComponentValidation();
 
-            if (left + menu.actualComponentWidth > Screen.instance.width) {
+            if (left + menu.actualComponentWidth > Screen.instance.actualWidth) {
                 left = target.screenLeft - menu.actualComponentWidth + target.actualComponentWidth;
                 rtl = true;
             }
@@ -170,6 +183,7 @@ private class Events extends haxe.ui.events.Events {
 
         _currentButton = target;
         _currentMenu = menu;
+        
 
         if (hasChildren == true) {
             var cx = menu.width - _currentButton.width;
@@ -185,7 +199,6 @@ private class Events extends haxe.ui.events.Events {
                 filler.hidden = true;
             }
 
-            Screen.instance.registerEvent(MouseEvent.MOUSE_DOWN, onScreenMouseDown);
             if (!_currentMenu.hasEvent(MenuEvent.MENU_SELECTED, onMenuSelected)) {
                 _currentMenu.registerEvent(MenuEvent.MENU_SELECTED, onMenuSelected);
             }
@@ -204,41 +217,19 @@ private class Events extends haxe.ui.events.Events {
             _currentMenu.unregisterEvent(MenuEvent.MENU_SELECTED, onMenuSelected);
             _currentMenu.hide();
             _currentButton.selected = false;
-            Screen.instance.unregisterEvent(MouseEvent.MOUSE_DOWN, onScreenMouseDown);
             Screen.instance.removeComponent(_currentMenu);
             _currentButton = null;
             _currentMenu = null;
         }
     }
 
-    private function onScreenMouseDown(event:MouseEvent) {
-        var close:Bool = true;
-
-        if (_currentMenu.hitTest(event.screenX, event.screenY)) {
-            close = false;
-        } else if (_currentButton.hitTest(event.screenX, event.screenY)) {
-            close = false;
-        } else {
-            var ref = _currentMenu;
-            var refEvents:MenuEvents = cast(ref._internalEvents, MenuEvents);
-            var refSubMenu = refEvents.currentSubMenu;
-            while (refSubMenu != null) {
-                if (refSubMenu.hitTest(event.screenX, event.screenY)) {
-                    close = false;
-                    break;
-                }
-
-                ref = refSubMenu;
-                refEvents = cast(ref._internalEvents, MenuEvents);
-                refSubMenu = refEvents.currentSubMenu;
-            }
-        }
-
-        if (close) {
+    private function onMenuClose(event:UIEvent) {
+        var menu = cast(event.target, Menu);
+        if (_currentMenu == menu) {
             hideCurrentMenu();
         }
     }
-
+    
     private function onMenuSelected(event:MenuEvent) {
         var newEvent = new MenuEvent(MenuEvent.MENU_SELECTED);
         newEvent.menu = event.menu;
@@ -341,5 +332,28 @@ private class Builder extends CompositeBuilder {
             }
         }
         return cast match;
+    }
+    
+    public override function findComponents<T:Component>(styleName:String = null, type:Class<T> = null, maxDepth:Int = 5):Array<T> {
+        var r:Array<T> = [];
+        for (menu in _menus) {
+            var match = true;
+            if (styleName != null && menu.hasClass(styleName) == false) {
+                match = false;
+            }
+            if (type != null && isOfType(menu, type) == false) {
+                match = false;
+            }
+            
+            if (match == true) {
+                r.push(cast menu);
+            }
+            
+            var childArray = menu.findComponents(styleName, type, maxDepth);
+            for (c in childArray) { // r.concat caused issues here on hxcpp
+                r.push(c);
+            }
+        }
+        return r;
     }
 }

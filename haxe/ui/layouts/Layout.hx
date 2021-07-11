@@ -28,6 +28,13 @@ class Layout implements ILayout {
         return _component.findComponent(criteria, type, recursive, searchType);
     }
 
+    private function findComponents<T:Component>(styleName:String = null, type:Class<T> = null, maxDepth:Int = 5):Array<T> {
+        if (_component == null) {
+            return null;
+        }
+        return _component.findComponents(styleName, type, maxDepth);
+    }
+    
     @:access(haxe.ui.core.Component)
     public function refresh() {
         if (_component != null && _component.isReady == true) {
@@ -135,6 +142,19 @@ class Layout implements ILayout {
     //******************************************************************************************
     // Helper props
     //******************************************************************************************
+    private var borderSize(get, null):Float;
+    private function get_borderSize():Float {
+        if (_component.style == null) {
+            return 0;
+        }
+
+        var n = _component.style.fullBorderSize;
+        if (n > 0) {
+            n--;
+        }
+        return n;
+    }
+    
     public var paddingLeft(get, null):Float;
     private function get_paddingLeft():Float {
         if (_component == null || _component.style == null || _component.style.paddingLeft == null) {

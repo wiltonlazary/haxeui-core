@@ -30,10 +30,10 @@ class ScrollView extends Component {
     //***********************************************************************************************************
     @:behaviour(Virtual)                                public var virtual:Bool;
     @:behaviour(ContentLayoutName, "vertical")          public var contentLayoutName:String;
-    @:behaviour(ContentWidth)                           public var contentWidth:Float;
-    @:behaviour(PercentContentWidth)                    public var percentContentWidth:Float;
-    @:behaviour(ContentHeight)                          public var contentHeight:Float;
-    @:behaviour(PercentContentHeight)                   public var percentContentHeight:Float;
+    @:behaviour(ContentWidth)                           public var contentWidth:Null<Float>;
+    @:behaviour(PercentContentWidth)                    public var percentContentWidth:Null<Float>;
+    @:behaviour(ContentHeight)                          public var contentHeight:Null<Float>;
+    @:behaviour(PercentContentHeight)                   public var percentContentHeight:Null<Float>;
     @:behaviour(HScrollPos)                             public var hscrollPos:Float;
     @:behaviour(HScrollMax)                             public var hscrollMax:Float;
     @:behaviour(HScrollPageSize)                        public var hscrollPageSize:Float;
@@ -140,12 +140,14 @@ private class ContentWidth extends Behaviour {
     public override function set(value:Variant) {
         var contents:Component = _component.findComponent("scrollview-contents", false, "css");
         if (contents != null) {
+            contents.percentWidth = null;
             contents.width = value;
         }
     }
 }
 
 @:dox(hide) @:noCompletion
+@:access(haxe.ui.core.Component)
 private class PercentContentWidth extends Behaviour {
     public override function get():Variant {
         var contents:Component = _component.findComponent("scrollview-contents", false, "css");
@@ -158,6 +160,7 @@ private class PercentContentWidth extends Behaviour {
     public override function set(value:Variant) {
         var contents:Component = _component.findComponent("scrollview-contents", false, "css");
         if (contents != null) {
+            contents.componentWidth = null;
             contents.percentWidth = value;
         }
     }
@@ -176,12 +179,14 @@ private class ContentHeight extends Behaviour {
     public override function set(value:Variant) {
         var contents:Component = _component.findComponent("scrollview-contents", false, "css");
         if (contents != null) {
+            contents.percentHeight = null;
             contents.height = value;
         }
     }
 }
 
 @:dox(hide) @:noCompletion
+@:access(haxe.ui.core.Component)
 private class PercentContentHeight extends Behaviour {
     public override function get():Variant {
         var contents:Component = _component.findComponent("scrollview-contents", false, "css");
@@ -194,6 +199,7 @@ private class PercentContentHeight extends Behaviour {
     public override function set(value:Variant) {
         var contents:Component = _component.findComponent("scrollview-contents", false, "css");
         if (contents != null) {
+            contents.componentHeight = null;
             contents.percentHeight = value;
         }
     }
@@ -532,7 +538,7 @@ class ScrollViewEvents extends haxe.ui.events.Events {
             }
         }
 
-        event.cancel();
+        //event.cancel();
 
         _offset = new Point();
         if (hscroll != null) {
@@ -1098,6 +1104,18 @@ class ScrollViewBuilder extends CompositeBuilder {
             autoHideScrolls = true;
         } else {
             autoHideScrolls = false;
+        }
+        
+        if (style.contentWidth != null && style.contentWidth != _scrollview.contentWidth) {
+            _scrollview.contentWidth = style.contentWidth;
+        } else if (style.contentWidthPercent != null && style.contentWidthPercent != _scrollview.percentContentWidth) {
+            _scrollview.percentContentWidth = style.contentWidthPercent;
+        }
+        
+        if (style.contentHeight != null && style.contentHeight != _scrollview.contentHeight) {
+            _scrollview.contentHeight = style.contentHeight;
+        } else if (style.contentHeightPercent != null && style.contentHeightPercent != _scrollview.percentContentHeight) {
+            _scrollview.percentContentHeight = style.contentHeightPercent;
         }
     }
 }

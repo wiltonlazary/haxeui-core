@@ -110,3 +110,24 @@
 .horizontal-scroll .inc:down {
     icon: "haxeui-core/styles/dark/right_arrow_white.png";
 }
+
+/************************************************************************
+** MOBILE VARIANTS
+*************************************************************************/
+.horizontal-scroll:mobile {
+    background-color: none;
+}
+
+.horizontal-scroll:mobile .thumb {
+    height: 4px;
+    border-radius: 4px;
+}
+
+.vertical-scroll:mobile {
+    background-color: none;
+}
+
+.vertical-scroll:mobile .thumb {
+    width: 4px;
+    border-radius: 4px;
+}

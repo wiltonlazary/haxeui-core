@@ -97,6 +97,11 @@ class DataSource<T> {
         return r;
     }
 
+    public function removeAt(index:Int):T {
+        var item = get(index);
+        return remove(item);
+    }
+    
     public function update(index:Int, item:T):T {
         var r = handleUpdateItem(index, item);
         handleChanged();
@@ -117,6 +122,13 @@ class DataSource<T> {
         }
     }
 
+    public function clearFilter() {
+    }
+    
+    // callback (fn) should return true if the element should not be filtered out
+    public function filter(fn:Int->T->Bool) {
+    }
+    
     private function handleChanged() {
         _changed = true;
         if (_allowCallbacks == true && onChange != null) {

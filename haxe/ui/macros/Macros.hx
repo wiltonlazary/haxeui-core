@@ -143,7 +143,11 @@ class Macros {
                 if (_style == null) {
                     _style = {};
                 }
-                $p{["customStyle", f.name]} = value;
+                if (value == null) {
+                    $p{["customStyle", f.name]} = null;
+                } else {
+                    $p{["customStyle", f.name]} = value;
+                }
                 return value;
             });
             
@@ -189,24 +193,24 @@ class Macros {
         var variable = ExprTools.toString(variable);
         if (hasGetter == false) {
             builder.addGetter(f.name, f.type, macro {
-                var c = findComponent($v{variable});
+                var c = findComponent($v{variable}, haxe.ui.core.Component);
                 if (c == null) {
                     trace("WARNING: no child component found: " + $v{variable});
-                    return Reflect.getProperty(c, $v{field});
+                    return haxe.ui.util.Variant.fromDynamic(c.$field);
                 }
                 var fieldIndex = Type.getInstanceFields(Type.getClass(c)).indexOf("get_" + $v{field});
                 if (fieldIndex == -1) {
                     trace("WARNING: no component getter found: " + $v{field});
-                    return Reflect.getProperty(c, $v{field});
+                    return haxe.ui.util.Variant.fromDynamic(c.$field);
                 }
-                return Reflect.getProperty(c, $v{field});
+                return haxe.ui.util.Variant.fromDynamic(c.$field);
             });
         }
 
         if (hasSetter == false) {
             builder.addSetter(f.name, f.type, macro {
                 if (value != $i{f.name}) {
-                    var c = findComponent($v{variable});
+                    var c = findComponent($v{variable}, haxe.ui.core.Component);
                     if (c == null) {
                         trace("WARNING: no child component found: " + $v{variable});
                         return value;
@@ -216,7 +220,7 @@ class Macros {
                         trace("WARNING: no component setter found: " + $v{field});
                         return value;
                     }
-                    Reflect.setProperty(c, $v{field}, value);
+                    c.$field = haxe.ui.util.Variant.fromDynamic(value);
                 }
                 return value;
             });
@@ -273,7 +277,7 @@ class Macros {
                                 } else {
                                     trace("WARNING: could not find component to regsiter event (" + $v{ExprTools.toString(component)} + ")");
                                 }
-                            }, AfterSuper);
+                            }, End);
                         default:
                             haxe.macro.Context.error("Unsupported bind format, expected bind(component.field) or bind(component, event)", meta.pos);
                     }
@@ -375,7 +379,10 @@ class Macros {
         var resolvedValueField = null;
         for (f in builder.getFieldsWithMeta("behaviour")) {
             TypeMap.addTypeInfo(builder.fullPath, f.name, ComplexTypeTools.toString(f.type));
-
+            if (f.name == valueField) {
+                TypeMap.addTypeInfo(builder.fullPath, "value", ComplexTypeTools.toString(f.type));
+            }
+            
             f.remove();
             if (builder.hasField(f.name, true) == false) { // check to see if it already exists, possibly in a super class
                 var newField:FieldBuilder = null;

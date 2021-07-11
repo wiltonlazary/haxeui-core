@@ -32,16 +32,26 @@ class Screen extends ScreenImpl {
     }
 
     public override function addComponent(component:Component):Component {
+        var wasReady = component.isReady;
         @:privateAccess component._hasScreen = true;
         super.addComponent(component);
-        #if !haxeui_android
+        #if !(haxeui_javafx || haxeui_android)
         component.ready();
         #end
         if (rootComponents.indexOf(component) == -1) {
             rootComponents.push(component);
-            FocusManager.instance.pushView(component);
-            component.registerEvent(UIEvent.RESIZE, _onRootComponentResize);    //refresh vh & vw
         }
+        if (FocusManager.instance.hasView(component) == false) {
+            FocusManager.instance.pushView(component);
+        }
+        if (component.hasEvent(UIEvent.RESIZE, _onRootComponentResize) == false) {
+            component.registerEvent(UIEvent.RESIZE, _onRootComponentResize);
+        }
+        
+        if (wasReady && component.hidden == false) {
+            component.dispatch(new UIEvent(UIEvent.SHOWN));
+        }
+        
         return component;
     }
 
@@ -72,45 +82,12 @@ class Screen extends ScreenImpl {
         return c;
     }
     
-    public function refreshStyleRootComponents() {
-        for (component in rootComponents) {
-            _refreshStyleComponent(component);
-        }
-    }
-
-    @:access(haxe.ui.core.Component)
-    private function _refreshStyleComponent(component:Component) {
-        for (child in component.childComponents) {
-//            child.applyStyle(child.style);
-            child.invalidateComponentStyle();
-            child.invalidateComponentDisplay();
-            _refreshStyleComponent(child);
-        }
-    }
-
-    private function _onRootComponentResize(e:UIEvent) {
-        _refreshStyleComponent(e.target);
-    }
-
     public function messageBox(message:String, title:String = null, type:MessageBoxType = null, modal:Bool = true, callback:DialogButton->Void = null):Dialog {
         return Toolkit.messageBox(message, title, type, modal, callback);
     }
 
     public function dialog(contents:Component, title:String = null, buttons:DialogButton = null, modal:Bool = true, callback:DialogButton->Void = null):Dialog {
         return Toolkit.dialog(contents, title, buttons, modal, callback);
-    }
-
-    public function invalidateAll() {
-        for (c in rootComponents) {
-            invalidateChildren(c);
-        }
-    }
-
-    private function invalidateChildren(c:Component) {
-        for (child in c.childComponents) {
-            invalidateChildren(child);
-        }
-        c.invalidateComponent();
     }
 
     private function onThemeChanged() {

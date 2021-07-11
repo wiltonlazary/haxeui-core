@@ -1,5 +1,6 @@
 package haxe.ui.core;
 
+import haxe.CallStack;
 import haxe.ui.geom.Rectangle;
 import haxe.ui.validation.InvalidationFlags;
 
@@ -122,6 +123,8 @@ class ComponentBounds extends ComponentLayout {
 
         if (parentComponent != null) {
             parentComponent.invalidateComponentLayout();
+        } else {
+            Screen.instance.resizeRootComponents();
         }
         return value;
     }
@@ -143,10 +146,38 @@ class ComponentBounds extends ComponentLayout {
 
         if (parentComponent != null) {
             parentComponent.invalidateComponentLayout();
+        } else {
+            Screen.instance.resizeRootComponents();
         }
         return value;
     }
 
+    private var _cachedPercentWidth:Null<Float> = null;
+    private var _cachedPercentHeight:Null<Float> = null;
+    private function cachePercentSizes(clearExisting:Bool = true) {
+        if (_percentWidth != null) {
+            _cachedPercentWidth = _percentWidth;
+            if (clearExisting == true) {
+                _percentWidth = null;
+            }
+        }
+        if (_percentHeight != null) {
+            _cachedPercentHeight = _percentHeight;
+            if (clearExisting == true) {
+                _percentHeight = null;
+            }
+        }
+    }
+    
+    private function restorePercentSizes() {
+        if (_cachedPercentWidth != null) {
+            percentWidth = _cachedPercentWidth;
+        }
+        if (_cachedPercentHeight != null) {
+            percentHeight = _cachedPercentHeight;
+        }
+    }
+    
     #if ((haxeui_openfl || haxeui_nme) && !haxeui_flixel)
 
     #if flash @:setter(x) #else override #end
@@ -471,6 +502,9 @@ class ComponentBounds extends ComponentLayout {
     **/
     public var componentClipRect(get, set):Rectangle;
     private function get_componentClipRect():Rectangle {
+        if (style != null && style.clip != null && style.clip == true) {
+            return new Rectangle(0, 0, componentWidth, componentHeight);
+        }
         return _componentClipRect;
     }
     private function set_componentClipRect(value:Rectangle):Rectangle {
@@ -479,4 +513,8 @@ class ComponentBounds extends ComponentLayout {
         return value;
     }
 
+    public var isComponentClipped(get, null):Bool;
+    private function get_isComponentClipped():Bool {
+        return (componentClipRect != null);
+    }
 }

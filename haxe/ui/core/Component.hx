@@ -652,6 +652,15 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         maxDepth--;
 
         var r:Array<T> = [];
+        if (_compositeBuilder != null) {
+            var childArray = _compositeBuilder.findComponents(styleName, type, maxDepth);
+            if (childArray != null) {
+                for (c in childArray) { // r.concat caused issues here on hxcpp
+                    r.push(c);
+                }
+            }
+        }
+        
         for (child in childComponents) {
             var match = true;
             if (styleName != null && child.hasClass(styleName) == false) {
@@ -670,6 +679,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
                 }
             }
         }
+        
         return r;
     }
 
@@ -786,8 +796,8 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         }
 
         if (_hidden == false) {
-            handleVisibility(false);
             _hidden = true;
+            handleVisibility(false);
             if (parentComponent != null) {
                 parentComponent.invalidateComponentLayout();
             }
@@ -805,8 +815,8 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         }
 
         if (_hidden == false) {
-            handleVisibility(false);
             _hidden = true;
+            handleVisibility(false);
             if (parentComponent != null) {
                 parentComponent.invalidateComponentLayout();
             }
@@ -832,8 +842,8 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         }
 
         if (_hidden == true) {
-            handleVisibility(true);
             _hidden = false;
+            handleVisibility(true);
             invalidateComponentLayout();
             if (parentComponent != null) {
                 parentComponent.invalidateComponentLayout();
@@ -852,8 +862,8 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         }
 
         if (_hidden == true) {
-            handleVisibility(true);
             _hidden = false;
+            handleVisibility(true);
             invalidateComponentLayout();
             if (parentComponent != null) {
                 parentComponent.invalidateComponentLayout();
@@ -941,7 +951,7 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
      A custom style object that will appled to this component after any css rules have been matched and applied
     **/
     @:dox(group = "Style related properties and methods")
-    public var customStyle(default, set):Style = {};
+    public var customStyle(default, set):Style = new Style();
     function set_customStyle(v:Style):Style {
         if (v != customStyle) {
             invalidateComponentStyle();
@@ -1281,6 +1291,9 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
                 onReady();
 
                 dispatch(new UIEvent(UIEvent.READY));
+                if (_hidden == false) {
+                    dispatch(new UIEvent(UIEvent.SHOWN));
+                }
             });
         }
     }
@@ -1776,15 +1789,19 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         }
 
         if (style.percentWidth != null) {
+            componentWidth = null;
             percentWidth = style.percentWidth;
         }
         if (style.percentHeight != null) {
+            componentHeight = null;
             percentHeight = style.percentHeight;
         }
         if (style.width != null) {
+            percentWidth = null;
             width = style.width;
         }
         if (style.height != null) {
+            percentHeight = null;
             height = style.height;
         }
 
@@ -1926,6 +1943,13 @@ class Component extends ComponentImpl implements IComponentBase implements IVali
         }
     }
 
+    private override function get_isComponentClipped():Bool {
+        if (_compositeBuilder != null) {
+            return _compositeBuilder.isComponentClipped;
+        }
+        return (componentClipRect != null);
+    }
+    
     //***********************************************************************************************************
     // Properties
     //***********************************************************************************************************

@@ -5,8 +5,17 @@ import haxe.ui.filters.FilterParser;
 import haxe.ui.styles.animation.Animation.AnimationOptions;
 import haxe.ui.styles.elements.Directive;
 
+enum StyleBorderType {
+    None;
+    Full;
+    Compound;
+}
+
 @:structInit
 class Style {
+    public function new() {
+    }
+    
     @:optional public var left:Null<Float>;
     @:optional public var top:Null<Float>;
 
@@ -121,8 +130,39 @@ class Style {
     @:optional public var pointerEvents:String;
 
     @:optional public var contentType:String;
-    // public function new() {}
+    @:optional public var direction:String;
 
+    @:optional public var contentWidth:Null<Float>;
+    @:optional public var contentWidthPercent:Null<Float>;
+    @:optional public var contentHeight:Null<Float>;
+    @:optional public var contentHeightPercent:Null<Float>;
+    
+    @:optional public var wordWrap:Null<Bool>;
+    
+    @:optional public var borderType(get, null):StyleBorderType;
+    private function get_borderType():StyleBorderType {
+        var t = StyleBorderType.Compound;
+        if (borderLeftSize != null && borderLeftSize == borderRightSize && borderLeftSize == borderBottomSize && borderLeftSize == borderTopSize) { // full border
+            t = StyleBorderType.Full;
+        } else if (borderLeftSize == null && borderRightSize == null && borderBottomSize == null && borderTopSize == null) {
+            t = StyleBorderType.None;
+        }
+        return t;
+    }
+
+    @:optional public var hasBorder(get, null):Bool;
+    private function get_hasBorder():Bool {
+        return borderType != StyleBorderType.None;
+    }
+    
+    @:optional public var fullBorderSize(get, null):Null<Float>;
+    private function get_fullBorderSize():Null<Float> {
+        if (borderType == StyleBorderType.Full) {
+            return borderLeftSize;
+        }
+        return 0;
+    }    
+    
     public function mergeDirectives(map:Map<String, Directive>) {
         for (key in map.keys()) {
             var v = map.get(key);
@@ -314,6 +354,8 @@ class Style {
                     cursor = ValueTools.string(v.value);
                 case "hidden":
                     hidden = ValueTools.bool(v.value);
+                case "display":
+                    hidden = ValueTools.none(v.value);
 
                 case "clip":
                     clip = ValueTools.bool(v.value);
@@ -392,6 +434,17 @@ class Style {
                     }
                 case "content-type":
                     contentType = ValueTools.string(v.value);
+                case "direction":
+                    direction = ValueTools.string(v.value);
+                    
+                case "content-width":
+                    contentWidth = ValueTools.calcDimension(v.value);
+                    contentWidthPercent = ValueTools.percent(v.value);
+                case "content-height":
+                    contentHeight = ValueTools.calcDimension(v.value);
+                    contentHeightPercent = ValueTools.percent(v.value);
+                case "word-wrap":
+                    wordWrap = ValueTools.bool(v.value);
             }
         }
     }
@@ -528,6 +581,14 @@ class Style {
         if (s.mode != null) mode = s.mode;
         if (s.pointerEvents != null) pointerEvents = s.pointerEvents;
         if (s.contentType != null) contentType = s.contentType;
+        if (s.direction != null) direction = s.direction;
+        
+        if (s.contentWidth != null) contentWidth = s.contentWidth;
+        if (s.contentWidthPercent != null) contentWidthPercent = s.contentWidthPercent;
+        if (s.contentHeight != null) contentHeight = s.contentHeight;
+        if (s.contentHeightPercent != null) contentHeightPercent = s.contentHeightPercent;
+        
+        if (s.wordWrap != null) wordWrap = s.wordWrap;
     }
 
     public function equalTo(s:Style):Bool {
@@ -640,10 +701,25 @@ class Style {
         if (s.mode != mode) return false;
         if (s.pointerEvents != pointerEvents) return false;
         if (s.contentType != contentType) return false;
+        if (s.direction != direction) return false;
+        
+        if (s.contentWidth != contentWidth) return false;
+        if (s.contentWidthPercent != contentWidthPercent) return false;
+        if (s.contentHeight != contentHeight) return false;
+        if (s.contentHeightPercent != contentHeightPercent) return false;
+
+        if (s.wordWrap != wordWrap) return false;
+        
         return true;
     }
 
     private inline function createAnimationOptions() {
         if (animationOptions == null) animationOptions = {};
+    }
+    
+    public function clone():Style {
+        var c = new Style();
+        c.apply(this);
+        return c;
     }
 }

@@ -3,6 +3,7 @@ package haxe.ui.components;
 import haxe.ui.core.Component;
 import haxe.ui.core.CompositeBuilder;
 import haxe.ui.behaviours.DataBehaviour;
+import haxe.ui.events.UIEvent;
 import haxe.ui.layouts.DefaultLayout;
 import haxe.ui.styles.Style;
 import haxe.ui.geom.Size;
@@ -13,6 +14,7 @@ class Label extends Component {
     // Styles
     //***********************************************************************************************************
     @:style(layout)                             public var textAlign:Null<String>;
+    @:style(layout)                             public var wordWrap:Null<Bool>;
 
     //***********************************************************************************************************
     // Public API
@@ -31,19 +33,24 @@ private class LabelLayout extends DefaultLayout {
         if (component.autoWidth == false) {
             component.getTextDisplay().width = component.componentWidth - paddingLeft - paddingRight;
 
-             // TODO: make not specific - need to check all backends first
+            var wordWrap = true;
+            if (_component.style != null && _component.style.wordWrap != null) {
+                wordWrap = _component.style.wordWrap;
+            }
+            
+            // TODO: make not specific - need to check all backends first - update: can move to backends!
             #if (haxeui_flixel)
-            component.getTextDisplay().wordWrap = true;
-            component.getTextDisplay().tf.autoSize = false;
+            component.getTextDisplay().wordWrap = wordWrap;
+            component.getTextDisplay().tf.autoSize = !wordWrap;
             #elseif (haxeui_openfl)
-            component.getTextDisplay().textField.autoSize = openfl.text.TextFieldAutoSize.NONE;
-            component.getTextDisplay().multiline = true;
-            component.getTextDisplay().wordWrap = true;
+            component.getTextDisplay().textField.autoSize = wordWrap == true ? openfl.text.TextFieldAutoSize.NONE : openfl.text.TextFieldAutoSize.LEFT;
+            component.getTextDisplay().multiline = wordWrap;
+            component.getTextDisplay().wordWrap = wordWrap;
             #elseif (haxeui_pixijs)
             component.getTextDisplay().textField.style.wordWrapWidth = component.getTextDisplay().width;
-            component.getTextDisplay().wordWrap = true;
+            component.getTextDisplay().wordWrap = wordWrap;
             #else
-            component.getTextDisplay().wordWrap = true;
+            component.getTextDisplay().wordWrap = wordWrap;
             #end
         } else {
             component.getTextDisplay().width = component.getTextDisplay().textWidth;
@@ -90,6 +97,7 @@ private class TextBehaviour extends DataBehaviour {
             _component.invalidateComponentStyle(true);
         }
         _component.getTextDisplay().text = '${_value}';
+        _component.dispatch(new UIEvent(UIEvent.CHANGE));
     }
 }
 
@@ -100,6 +108,7 @@ private class HtmlTextBehaviour extends DataBehaviour {
             _component.invalidateComponentStyle(true);
         }
         _component.getTextDisplay().htmlText = '${_value}';
+        _component.dispatch(new UIEvent(UIEvent.CHANGE));
     }
 }
 
@@ -128,5 +137,14 @@ private class Builder extends CompositeBuilder {
 
     public static inline function isHtml(v:String):Bool {
         return v == null ? false : v.indexOf("<font ") != -1;
+    }
+    
+    public override function get_isComponentClipped():Bool {
+        var componentClipRect = _component.componentClipRect;
+        if (componentClipRect == null) {
+            return false;
+        }
+        
+        return _label.getTextDisplay().measureTextWidth() > componentClipRect.width;
     }
 }

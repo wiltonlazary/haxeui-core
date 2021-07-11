@@ -53,21 +53,6 @@ class TableView extends ScrollView implements IDataComponent implements IVirtual
 
     @:event(ItemEvent.COMPONENT_EVENT)                          public var onComponentEvent:ItemEvent->Void;
 
-    //TODO - error with Behaviour
-    private var _itemRendererFunction:ItemRendererFunction4;
-    public var itemRendererFunction(get, set):ItemRendererFunction4;
-    private function get_itemRendererFunction():ItemRendererFunction4 {
-        return _itemRendererFunction;
-    }
-    private function set_itemRendererFunction(value:ItemRendererFunction4):ItemRendererFunction4 {
-        if (_itemRendererFunction != value) {
-            _itemRendererFunction = value;
-            invalidateComponentLayout();
-        }
-
-        return value;
-    }
-
     private var _itemRendererClass:Class<ItemRenderer>;
     public var itemRendererClass(get, set):Class<ItemRenderer>;
     private function get_itemRendererClass():Class<ItemRenderer> {
@@ -97,15 +82,19 @@ class TableView extends ScrollView implements IDataComponent implements IVirtual
     }
 }
 
-@:dox(hide) @:noCompletion
-typedef ItemRendererFunction4 = Dynamic->Int->Class<ItemRenderer>;    //(data, index):Class<ItemRenderer>
-
 private class CompoundItemRenderer extends ItemRenderer {
     public function new() {
         super();
         this.layout = LayoutFactory.createFromName("horizontal");
         this.styleString = "spacing: 2px;";
         removeClass("itemrenderer");
+    }
+    
+    private override function onDataChanged(data:Dynamic) {
+        var renderers = findComponents(ItemRenderer);
+        for (r in renderers) {
+            r.onDataChanged(data);
+        }
     }
 }
 
@@ -402,16 +391,29 @@ private class Builder extends ScrollViewBuilder {
         return super.removeComponent(child, dispose, invalidate);
     }
 
+    private function createRenderer(id:String):ItemRenderer {
+        var itemRenderer:ItemRenderer = null;
+        if (_tableview.itemRendererClass == null) {
+            itemRenderer = new ItemRenderer();
+        } else {
+            itemRenderer = Type.createInstance(_tableview.itemRendererClass, []);
+        }
+        
+        if (itemRenderer.childComponents.length == 0) {
+            var label = new Label();
+            label.id = id;
+            label.percentWidth = 100;
+            label.verticalAlign = "center";
+            itemRenderer.addComponent(label);
+        }
+        return itemRenderer;
+    }
+    
     public function buildDefaultRenderer() {
         var r = new CompoundItemRenderer();
         if (_header != null) {
             for (column in _header.childComponents) {
-                var itemRenderer = new ItemRenderer();
-                var label = new Label();
-                label.id = column.id;
-                label.percentWidth = 100;
-                label.verticalAlign = "center";
-                itemRenderer.addComponent(label);
+                var itemRenderer = createRenderer(column.id);
                 r.addComponent(itemRenderer);
             }
         }
@@ -419,17 +421,16 @@ private class Builder extends ScrollViewBuilder {
     }
 
     public function fillExistingRenderer() {
+        var i = 0;
         for (column in _header.childComponents) {
             var existing = _tableview.itemRenderer.findComponent(column.id, ItemRenderer, true);
             if (existing == null) {
-                var itemRenderer = new ItemRenderer();
-                var label = new Label();
-                label.id = column.id;
-                label.percentWidth = 100;
-                label.verticalAlign = "center";
-                itemRenderer.addComponent(label);
-                _tableview.itemRenderer.addComponent(itemRenderer);
+                var itemRenderer = createRenderer(column.id);
+                _tableview.itemRenderer.addComponentAt(itemRenderer, i);
+            } else {
+                _tableview.itemRenderer.setComponentIndex(existing, i);
             }
+            i++;
         }
 
         var data = _component.findComponent("tableview-contents", Box, true, "css");
@@ -511,8 +512,10 @@ private class Layout extends VerticalVirtualLayout {
         var vscroll = _component.findComponent(VerticalScroll);
         if (vscroll != null && vscroll.hidden == false) {
             header.addClass("scrolling");
+            header.invalidateComponent(true);
         } else {
             header.removeClass("scrolling");
+            header.invalidateComponent(true);
         }
         var rc:Rectangle = new Rectangle(cast(_component, ScrollView).hscrollPos + 1, 1, usableWidth, header.height);
         header.componentClipRect = rc;
